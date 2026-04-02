@@ -1,6 +1,7 @@
 # getPitch — YouTube Key Detector
 
 [![CI](https://github.com/Ikeli0320/getPitch/actions/workflows/ci.yml/badge.svg)](https://github.com/Ikeli0320/getPitch/actions/workflows/ci.yml)
+[![Changelog](https://img.shields.io/badge/changelog-CHANGELOG.md-blue)](CHANGELOG.md)
 
 A Chrome extension that listens to any YouTube song and tells you its **key signature**, **highest note**, **BPM**, and **recommended singing key** — all in real time, entirely in your browser.
 

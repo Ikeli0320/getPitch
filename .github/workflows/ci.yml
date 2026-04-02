@@ -22,5 +22,8 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Verify manifest/package version in sync
+        run: npm run version-check
+
       - name: Run all tests
         run: npm test

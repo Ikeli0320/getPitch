@@ -7,6 +7,10 @@ const FREQ_MIN_HZ         = 130;
 const FREQ_MAX_HZ         = 1175;
 const ONSET_TICK_MS       = 50;
 const ONSET_HISTORY_MAX   = 400; // 20 seconds of onset data
+// Frequency band used for BPM onset detection (spectral flux).
+// Captures kick drum + bass transients; avoids mids/highs that vary too much by genre.
+const ONSET_FREQ_MIN_HZ   = 50;
+const ONSET_FREQ_MAX_HZ   = 500;
 // If chromaEnergy stays near-zero beyond this threshold, the video is likely
 // muted or has no audio track — show an error rather than silently hanging.
 const SILENT_TIMEOUT_MS   = 20000;
@@ -221,7 +225,7 @@ function _onsetTick() {
     let onset = 0;
     for (let i = 1; i < freqData.length; i++) {
       const freq = i * freqPerBin;
-      if (freq < 50 || freq > 500) continue;
+      if (freq < ONSET_FREQ_MIN_HZ || freq > ONSET_FREQ_MAX_HZ) continue;
       const diff = freqData[i] - prevOnsetData[i];
       if (diff > 0) onset += diff;
     }
