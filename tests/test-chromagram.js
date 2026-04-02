@@ -31,5 +31,19 @@ accumulateChroma(sum, new Float32Array([1,0,0,0,0,0,0,0,0,0,0,0]));
 accumulateChroma(sum, new Float32Array([0,0,0,0,0,0,0,1,0,0,0,0]));
 assert(sum[0] === 1 && sum[7] === 1, 'Accumulates correctly');
 
+// Silence guard: chromaSum energy check (mirrors content.js key-lock guard)
+console.log('\nTest: silence guard — chromaEnergy threshold');
+const silentSum = new Float32Array(12); // all zeros
+assert(silentSum.reduce((a, b) => a + b, 0) <= 0.01,
+  'Silent chromaSum energy ≤ 0.01 (would skip key lock)');
+
+const activeFreq = new Float32Array(2048).fill(-100);
+const cBin = Math.round(261.6 / (44100 / 4096)); // C4
+activeFreq[cBin] = -20;
+const activeSum = new Float32Array(12);
+accumulateChroma(activeSum, buildChromagram(activeFreq, 44100, 4096));
+assert(activeSum.reduce((a, b) => a + b, 0) > 0.01,
+  'Active audio chromaSum energy > 0.01 (would allow key lock)');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

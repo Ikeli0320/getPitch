@@ -16,7 +16,7 @@ function buildChromagram(freqData, sampleRate, fftSize) {
     if (dB < -80) continue; // near-silence
 
     const freq = bin * freqPerBin;
-    if (freq < 65 || freq > 2093) continue; // C2–C7 singing range
+    if (freq < 130 || freq > 1047) continue; // C3–C6: core harmonic range for key detection
 
     const midi = 69 + 12 * Math.log2(freq / 440);
     const pc = ((Math.round(midi) % 12) + 12) % 12;

@@ -1,8 +1,10 @@
 // content/key-detector.js
 
-// Krumhansl-Schmuckler (1990) key profiles — index 0 = tonic
-const MAJOR_PROFILE = [6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
-const MINOR_PROFILE = [6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+// Bellman-Budge (1962) key profiles — index 0 = tonic
+// Preferred over K-S (1990) for pop music: much higher contrast between scale tones
+// and non-scale tones, which reduces relative major/minor confusion (e.g. G major vs F# minor).
+const MAJOR_PROFILE = [16.80,0.86,12.95,1.41,13.49,11.93,1.25,20.28,1.80,8.04,0.62,10.57];
+const MINOR_PROFILE = [18.16,0.69,12.99,13.34,1.07,11.15,1.38,21.07,7.49,1.53,0.92,10.21];
 
 // All 24 keys: root=pitch class (0=C…11=B), acc=sharps(+) / flats(-)
 const ALL_KEYS = [
@@ -55,13 +57,17 @@ function _pearson(chroma, profile, rootOffset) {
  * @returns {{ root, mode, name, acc }}
  */
 function detectKey(chromaSum) {
-  let best = null, bestCorr = -Infinity;
+  let best = null, bestCorr = -Infinity, secondCorr = -Infinity;
   for (const key of ALL_KEYS) {
     const prof = key.mode === 'major' ? MAJOR_PROFILE : MINOR_PROFILE;
     const corr = _pearson(chromaSum, prof, key.root);
-    if (corr > bestCorr) { bestCorr = corr; best = key; }
+    if (corr > bestCorr) { secondCorr = bestCorr; bestCorr = corr; best = key; }
+    else if (corr > secondCorr) { secondCorr = corr; }
   }
-  return best;
+  // Confidence: margin between top-1 and top-2, scaled so 0.20 gap ≈ 100%.
+  // Pearson margins in practice: >0.15 = clear winner, 0.05–0.15 = plausible, <0.05 = ambiguous.
+  const confidence = Math.min(100, Math.round(Math.max(0, bestCorr - secondCorr) * 500));
+  return { ...best, confidence };
 }
 
 /**
@@ -109,8 +115,13 @@ function midiToSolfege(midi) {
  * @returns {{ root, mode, name, acc, semitoneShift }}
  */
 function recommendKey(detectedKey, maxMidi) {
+  if (!detectedKey || (detectedKey.mode !== 'major' && detectedKey.mode !== 'minor')) return null;
   const D5 = 74;
-  const shift = D5 - maxMidi;
+  // Normalize to nearest octave-equivalent shift in [-6, +6].
+  // Prevents showing "-12 semitones" when the key name doesn't actually change.
+  let shift = D5 - maxMidi;
+  shift = ((shift % 12) + 12) % 12;
+  if (shift > 6) shift -= 12;
   const targetRoot = ((detectedKey.root + shift) % 12 + 12) % 12;
   const allowed = ALL_KEYS.filter(k => k.mode === detectedKey.mode && Math.abs(k.acc) <= 3);
 

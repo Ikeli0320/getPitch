@@ -14,38 +14,132 @@ const DEFAULT_STATE = {
 
 let state = { ...DEFAULT_STATE };
 
+// Track which tab is currently being analysed.
+// Prevents updateResults messages from a stale tab (user started analysis on Tab A,
+// then switched to Tab B and started again) from corrupting the active tab's results.
+let activeTabId = null;
+
+// Restore last-known state after service worker restarts (MV3 workers are evicted after ~30s idle).
+// Without this, a freshly-woken worker returns DEFAULT_STATE to the popup even though
+// chrome.storage.session still holds the last analysis results.
+chrome.storage.session.get('getPitchState').then(result => {
+  if (result.getPitchState && typeof result.getPitchState === 'object') {
+    // Merge with DEFAULT_STATE so missing keys from older versions are filled in
+    state = { ...DEFAULT_STATE, ...result.getPitchState };
+  }
+}).catch(() => {});
+
+chrome.runtime.onInstalled.addListener(({ reason, previousVersion }) => {
+  if (reason === 'update' && previousVersion) {
+    // Clear stale session state on extension update to avoid schema mismatches
+    chrome.storage.session.remove('getPitchState').catch(() => {});
+    state = { ...DEFAULT_STATE };
+  }
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.action === 'startAnalysis') {
+    // Stop any previous analysis tab before starting a new one.
+    // This handles the case where the user has two YouTube tabs and starts
+    // analysis on each — without this, both tabs' data would intermingle.
+    if (activeTabId !== null) {
+      _sendToTab(activeTabId, { action: 'stop' });
+    }
+    // Set sentinel synchronously so a concurrent startAnalysis (rapid double-click
+    // before tabs.query resolves) sees a non-null activeTabId and stops the pending
+    // tab instead of silently spawning a second analysis session.
+    activeTabId = -1;
+    // Reset all analysis fields immediately so the popup shows a clean slate
+    // before the content script's first tick arrives.
+    state = {
+      ...state,
+      isAnalyzing:    true,
+      keyLocked:      false,
+      detectedKey:    null,
+      maxNote:        null,
+      maxNoteSolfege: null,
+      bpm:            null,
+      recommendedKey: null,
+      elapsedMs:      0,
+      error:          null,
+    };
+    chrome.storage.session.set({ getPitchState: state }).catch(() => {});
     _activeTab(tab => {
-      if (!tab) return;
-      chrome.tabs.sendMessage(tab.id, { action: 'start' });
+      if (!tab) {
+        // No active tab found (e.g. page navigated away between popup click and
+        // tabs.query resolving). Revert to stopped state so the popup doesn't
+        // get stuck showing "分析中..." with no content script running.
+        activeTabId = null;
+        state = { ...state, isAnalyzing: false, error: null };
+        chrome.storage.session.set({ getPitchState: state }).catch(() => {});
+        return;
+      }
+      activeTabId = tab.id;
+      _sendToTab(tab.id, { action: 'start' });
     });
     return;
   }
 
   if (msg.action === 'stopAnalysis') {
-    _activeTab(tab => {
-      if (!tab) return;
-      chrome.tabs.sendMessage(tab.id, { action: 'stop' });
-    });
-    state = { ...state, isAnalyzing: false };
-    chrome.storage.session.set({ getPitchState: state });
+    // Stop the tab that is actually running analysis (not necessarily the active tab).
+    if (activeTabId !== null) {
+      _sendToTab(activeTabId, { action: 'stop' });
+      activeTabId = null;
+    }
+    // Keep detected key/note/BPM visible after stopping — user stopped because
+    // they found what they needed, not because they want to lose the results.
+    state = { ...state, isAnalyzing: false, error: null };
+    chrome.storage.session.set({ getPitchState: state }).catch(() => {});
     return;
   }
 
   if (msg.action === 'updateResults') {
+    // Only accept updates from the tab we started analysis on.
+    // Reject everything when no analysis is active (activeTabId === null) to
+    // prevent stale content scripts from writing results after stopAnalysis.
+    if (!sender.tab || activeTabId === null || sender.tab.id !== activeTabId) return;
     state = { ...state, ...msg.data };
-    chrome.storage.session.set({ getPitchState: state });
+    chrome.storage.session.set({ getPitchState: state }).catch(() => {});
     return;
   }
 
   if (msg.action === 'getState') {
-    sendResponse(state);
-    return true; // Keep channel open for async
+    // Always read from session storage so a freshly-woken service worker
+    // returns the actual last state, not the reset in-memory default.
+    chrome.storage.session.get('getPitchState').then(result => {
+      const stored = result.getPitchState;
+      // Guard against corrupted storage: merge with defaults so all keys exist
+      sendResponse(stored && typeof stored === 'object'
+        ? { ...DEFAULT_STATE, ...stored }
+        : state);
+    }).catch(() => sendResponse(state));
+    return true; // Keep channel open for async response
+  }
+
+  if (msg.action === 'resetState') {
+    // Only honour reset from the tab that is currently being analysed.
+    // Without this guard, navigating on any YouTube tab (not the one being
+    // analysed) would wipe the active analysis state and null activeTabId,
+    // causing the active tab's subsequent updateResults to be rejected.
+    if (sender.tab && activeTabId !== null && activeTabId !== -1 &&
+        sender.tab.id !== activeTabId) return;
+    activeTabId = null;
+    state = { ...DEFAULT_STATE };
+    chrome.storage.session.set({ getPitchState: state }).catch(() => {});
+    return;
   }
 });
 
 function _activeTab(cb) {
-  chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => cb(tab));
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, ([tab]) => {
+    // Always call cb — null means no tab found; callers must handle this case.
+    cb(tab || null);
+  });
+}
+
+function _sendToTab(tabId, msg) {
+  chrome.tabs.sendMessage(tabId, msg).catch(() => {
+    // Tab may have navigated away or content script not yet injected
+  });
 }

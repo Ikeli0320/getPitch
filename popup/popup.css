@@ -47,7 +47,7 @@ header h1 { font-size: 18px; font-weight: 600; color: #fff; }
   padding: 10px 14px;
   margin-bottom: 8px;
 }
-.card label {
+.card .card-label {
   font-size: 11px;
   color: #777;
   text-transform: uppercase;
@@ -81,6 +81,11 @@ input[type=range] {
   background: #2d2d44;
   border-radius: 2px;
   outline: none;
+}
+input[type=range]:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -166,6 +171,10 @@ button {
   font-weight: 500;
   transition: background 0.15s;
 }
+button:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+}
 #start-btn { flex: 1; background: #4a90e2; color: #fff; }
 #start-btn:hover { background: #357abd; }
 #start-btn.stop { background: #e24a4a; }
@@ -174,3 +183,17 @@ button {
 #detail-btn:hover { background: #3a3a54; }
 
 .hidden { display: none !important; }
+
+#version-bar {
+  text-align: center;
+  font-size: 10px;
+  color: #555;
+  margin-top: 6px;
+  letter-spacing: 0.3px;
+}
+
+.chip.active {
+  background: #4a90e2;
+  color: #fff;
+  font-weight: 600;
+}

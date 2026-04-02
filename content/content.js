@@ -24,6 +24,13 @@ let startTime    = null;
 // BPM detection state
 let onsetHistory    = [];
 let prevOnsetData   = null;
+let _bpmBuffer      = []; // smoothing: median of last N estimates
+
+// Max-note confirmation: require note to appear in ≥2 of last 3 frames
+// before accepting it — prevents single-frame transient spikes from instruments.
+const NOTE_WINDOW   = 3;
+const NOTE_MIN_HITS = 2;
+let _noteWindow     = [];
 
 // ── Message listener ───────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg) => {
@@ -33,9 +40,13 @@ chrome.runtime.onMessage.addListener((msg) => {
 
 // ── Public API ─────────────────────────────────────────────────────────────
 async function startAnalysis() {
-  const video = document.querySelector('video');
-  if (!video) {
-    _send({ error: '找不到影片元素，請確認影片正在播放' });
+  const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
+  if (!video || video.readyState < 2) {
+    _send({ isAnalyzing: false, error: '找不到影片元素，請確認影片正在播放' });
+    return;
+  }
+  if (video.paused) {
+    _send({ isAnalyzing: false, error: '請先播放影片，再開始分析' });
     return;
   }
 
@@ -46,15 +57,33 @@ async function startAnalysis() {
   detectedKey  = null;
   keyLocked    = false;
   startTime    = Date.now();
-  onsetHistory = [];
+  onsetHistory  = [];
   prevOnsetData = null;
+  _bpmBuffer    = [];
+  _noteWindow   = [];
 
   try {
+    // If context was closed (e.g. browser memory pressure), recreate it.
+    // A closed AudioContext cannot be resumed — only a new one works.
+    if (audioCtx && audioCtx.state === 'closed') {
+      audioCtx    = null;
+      audioSource = null;   // source belongs to the dead context
+      analyserNode = null;  // analyser belongs to the dead context too;
+                            // must null it so the !audioSource block below recreates
+                            // both together — otherwise audioSource.connect(analyserNode)
+                            // would wire the new source into a dead-context analyser
+                            // that silently returns -Infinity for all frequency bins.
+    }
     if (!audioCtx) {
       audioCtx = new AudioContext();
     }
     if (audioCtx.state === 'suspended') await audioCtx.resume();
 
+    // Guard against stale audioSource pointing to a different video element
+    // (e.g. extension loaded mid-video, or missed yt-navigate-finish event).
+    if (audioSource && audioSource.mediaElement !== video) {
+      audioSource = null;
+    }
     if (!audioSource) {
       analyserNode = audioCtx.createAnalyser();
       analyserNode.fftSize = 4096;
@@ -64,7 +93,7 @@ async function startAnalysis() {
       analyserNode.connect(audioCtx.destination); // Keep audio audible
     }
   } catch (e) {
-    _send({ error: '音訊初始化失敗: ' + e.message });
+    _send({ isAnalyzing: false, error: '音訊初始化失敗: ' + e.message });
     return;
   }
 
@@ -83,7 +112,7 @@ function stopAnalysis() {
 
 // ── Tick ───────────────────────────────────────────────────────────────────
 function _tick() {
-  if (!analyserNode) return;
+  if (!audioCtx || !analyserNode) return;
 
   const freqData = new Float32Array(analyserNode.frequencyBinCount);
   analyserNode.getFloatFrequencyData(freqData);
@@ -93,18 +122,30 @@ function _tick() {
   accumulateChroma(chromaSum, frame);
   frameCount++;
 
-  // Track highest note
+  // Track highest note — require ≥2 of last 3 frames to agree before accepting
   const noteMidi = _findMaxNote(freqData);
-  if (noteMidi !== null && (maxMidi === null || noteMidi > maxMidi)) {
-    maxMidi = noteMidi;
+  _noteWindow.push(noteMidi);
+  if (_noteWindow.length > NOTE_WINDOW) _noteWindow.shift();
+  const _noteCounts = {};
+  for (const n of _noteWindow) { if (n !== null) _noteCounts[n] = (_noteCounts[n] || 0) + 1; }
+  const confirmed = Object.keys(_noteCounts)
+    .filter(n => _noteCounts[n] >= NOTE_MIN_HITS)
+    .map(Number);
+  if (confirmed.length > 0) {
+    const top = Math.max(...confirmed);
+    if (maxMidi === null || top > maxMidi) maxMidi = top;
   }
 
   const elapsed = Date.now() - startTime;
 
-  // Lock key at 15s
-  if (!keyLocked && elapsed >= KEY_LOCK_MS && frameCount > 0) {
-    detectedKey = detectKey(chromaSum);
-    keyLocked   = true;
+  // Lock key at 15s — only if sufficient audio energy was observed.
+  // A near-zero chromaSum (silent/muted video) would yield an arbitrary key.
+  if (!keyLocked && elapsed >= KEY_LOCK_MS && frameCount >= 10) {
+    const chromaEnergy = chromaSum.reduce((a, b) => a + b, 0);
+    if (chromaEnergy > 0.01) {
+      detectedKey = detectKey(chromaSum);
+      keyLocked   = true;
+    }
   }
 
   const recommended = (keyLocked && maxMidi !== null)
@@ -145,14 +186,18 @@ function _findMaxNote(freqData) {
 
 // ── BPM (onset detection) ──────────────────────────────────────────────────
 function _onsetTick() {
-  if (!analyserNode) return;
+  if (!audioCtx || !analyserNode) return;
   const freqData = new Float32Array(analyserNode.frequencyBinCount);
   analyserNode.getFloatFrequencyData(freqData);
 
   if (prevOnsetData) {
-    // Spectral flux: sum positive differences across all bins
+    // Spectral flux: positive dB differences in low-mid range (50–500 Hz)
+    // This range captures kick drum and bass transients — most reliable for BPM
+    const freqPerBin = audioCtx.sampleRate / analyserNode.fftSize;
     let onset = 0;
-    for (let i = 0; i < freqData.length; i++) {
+    for (let i = 1; i < freqData.length; i++) {
+      const freq = i * freqPerBin;
+      if (freq < 50 || freq > 500) continue;
       const diff = freqData[i] - prevOnsetData[i];
       if (diff > 0) onset += diff;
     }
@@ -167,8 +212,8 @@ function _estimateBPM() {
   if (n < 100) return null; // Need ~5 seconds of data
 
   const ticksPerSec  = 1000 / ONSET_TICK_MS; // 20
-  const minPeriod    = Math.round(ticksPerSec * 60 / 200); // fastest: 200 BPM
-  const maxPeriod    = Math.round(ticksPerSec * 60 / 50);  // slowest: 50 BPM
+  const minPeriod    = Math.round(ticksPerSec * 60 / 180); // fastest: 180 BPM
+  const maxPeriod    = Math.round(ticksPerSec * 60 / 60);  // slowest: 60 BPM
 
   // Remove DC offset
   const mean = onsetHistory.reduce((a, b) => a + b, 0) / n;
@@ -185,9 +230,47 @@ function _estimateBPM() {
 
   if (!bestPeriod) return null;
   const bpm = Math.round((ticksPerSec * 60) / bestPeriod);
-  return (bpm >= 50 && bpm <= 200) ? bpm : null;
+  if (bpm < 60 || bpm > 180) return null;
+
+  // Median filter over last 5 estimates to prevent flickering
+  _bpmBuffer.push(bpm);
+  if (_bpmBuffer.length > 5) _bpmBuffer.shift();
+  const sorted = [..._bpmBuffer].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
 }
 
 function _send(data) {
-  chrome.runtime.sendMessage({ action: 'updateResults', data });
+  // sendMessage throws if the receiving end (background) is not available.
+  chrome.runtime.sendMessage({ action: 'updateResults', data }).catch(() => {});
 }
+
+// ── Auto-reset on YouTube SPA navigation ───────────────────────────────────
+// YouTube fires 'yt-navigate-finish' on document after each SPA video change.
+document.addEventListener('yt-navigate-finish', () => {
+  if (tickTimer || onsetTimer) {
+    // Analysis was running — stop timers
+    if (tickTimer)  { clearInterval(tickTimer);  tickTimer  = null; }
+    if (onsetTimer) { clearInterval(onsetTimer); onsetTimer = null; }
+  }
+
+  // If YouTube replaced the <video> element, the old audioSource is stale.
+  // Reset it so startAnalysis() reconnects to the new element.
+  const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
+  if (audioSource && (!video || audioSource.mediaElement !== video)) {
+    audioSource = null;
+  }
+
+  // Reset all detection state (new video = fresh start)
+  chromaSum     = new Float32Array(12);
+  frameCount    = 0;
+  maxMidi       = null;
+  detectedKey   = null;
+  keyLocked     = false;
+  startTime     = null;
+  onsetHistory  = [];
+  prevOnsetData = null;
+  _bpmBuffer    = [];
+  _noteWindow   = [];
+
+  chrome.runtime.sendMessage({ action: 'resetState' }).catch(() => {});
+});

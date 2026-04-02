@@ -33,18 +33,31 @@ const _ALLOWED_KEYS = [
 ];
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Populate allowed-keys chips once
+  // Show version from manifest so it stays in sync automatically
+  document.getElementById('version-bar').textContent =
+    'v' + chrome.runtime.getManifest().version;
+
+  // Populate allowed-keys chips once (data-key used for active highlighting)
   const allowedEl = document.getElementById('d-allowed');
   ALLOWED_KEY_NAMES.forEach(name => {
     const el = document.createElement('span');
     el.className = 'chip';
+    el.setAttribute('role', 'listitem');
+    el.dataset.key = name;
     el.textContent = name;
     allowedEl.appendChild(el);
   });
 
   // Check if we're on a YouTube watch page
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab || !tab.url || !tab.url.includes('youtube.com/watch')) {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  const _isYouTubeWatch = (() => {
+    try {
+      const u = new URL(tab && tab.url ? tab.url : '');
+      return (u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com') &&
+             u.pathname === '/watch';
+    } catch (_) { return false; }
+  })();
+  if (!_isYouTubeWatch) {
     _showMsg('請前往 YouTube 播放歌曲後使用');
     document.getElementById('start-btn').disabled = true;
     return;
@@ -53,35 +66,72 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Show song title (strip " - YouTube" suffix from tab title)
   const songTitle = (tab.title || '').replace(/\s*[-–]\s*YouTube\s*$/, '').trim();
   if (songTitle) {
-    document.getElementById('song-title').textContent = songTitle;
+    const titleEl = document.getElementById('song-title');
+    titleEl.textContent = songTitle;
+    titleEl.title = songTitle; // tooltip for truncated titles
     document.getElementById('song-title-bar').classList.remove('hidden');
   }
 
   // Load latest state from background
-  const state = await chrome.runtime.sendMessage({ action: 'getState' });
+  let state = null;
+  try { state = await chrome.runtime.sendMessage({ action: 'getState' }); } catch (_) {}
   if (state) { _lastState = state; _updateUI(state); }
 
-  // Button: start / stop
+  // Button: start / stop — update button text immediately for snappy UX
   document.getElementById('start-btn').addEventListener('click', () => {
-    if (_isAnalyzing) {
-      chrome.runtime.sendMessage({ action: 'stopAnalysis' });
-    } else {
-      chrome.runtime.sendMessage({ action: 'startAnalysis' });
-    }
+    const btn = document.getElementById('start-btn');
+    // Use the button's own visual state as source of truth — prevents double-send
+    // if the user clicks before _isAnalyzing has been updated by storage.onChanged.
+    const willStop = btn.classList.contains('stop');
+    const action = willStop ? 'stopAnalysis' : 'startAnalysis';
+    // Optimistic UI: flip button before the async round-trip
+    btn.textContent = willStop ? '▶ 開始分析' : '⏹ 停止分析';
+    btn.classList.toggle('stop', !willStop);
+    chrome.runtime.sendMessage({ action }).catch(() => {
+      // Revert if message failed
+      btn.textContent = willStop ? '⏹ 停止分析' : '▶ 開始分析';
+      btn.classList.toggle('stop', willStop);
+    });
   });
 
   // Button: detail toggle
   document.getElementById('detail-btn').addEventListener('click', () => {
     _showDetail = !_showDetail;
-    document.getElementById('detail-section').classList.toggle('hidden', !_showDetail);
-    document.getElementById('detail-btn').textContent = _showDetail ? '簡略 ▲' : '詳細 ▼';
+    const detailSection = document.getElementById('detail-section');
+    detailSection.classList.toggle('hidden', !_showDetail);
+    detailSection.setAttribute('aria-hidden', String(!_showDetail));
+    const detailBtn = document.getElementById('detail-btn');
+    detailBtn.textContent = _showDetail ? '簡略 ▲' : '詳細 ▼';
+    detailBtn.setAttribute('aria-expanded', String(_showDetail));
   });
 
   // Live updates via storage
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'session' && changes.getPitchState) {
-      _lastState = changes.getPitchState.newValue;
-      _updateUI(_lastState);
+      const next = changes.getPitchState.newValue;
+      if (!next) return;
+      // Detect full reset (new song navigated to) — refresh the song title.
+      // Guard: only treat as navigation reset if previous state was non-empty
+      // (was analysing or had results). A plain Stop with no results detected
+      // also produces all-null fields but should not re-query the tab title.
+      const wasReset = _lastState
+        && !next.isAnalyzing && !next.detectedKey && !next.maxNote
+        && (_lastState.isAnalyzing || _lastState.detectedKey || _lastState.maxNote);
+      if (wasReset) {
+        _lastKeyAcc = undefined; _lastRecAcc = undefined; // invalidate SVG caches
+        chrome.tabs.query({ active: true, lastFocusedWindow: true }, ([tab]) => {
+          if (tab && tab.url && tab.url.includes('youtube.com/watch')) {
+            const t = (tab.title || '').replace(/\s*[-–]\s*YouTube\s*$/, '').trim();
+            if (t) {
+              const el = document.getElementById('song-title');
+              el.textContent = t;
+              el.title = t;
+            }
+          }
+        });
+      }
+      _lastState = next;
+      _updateUI(next);
     }
   });
 
@@ -91,6 +141,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const label = _transposeOffset === 0 ? '0'
       : (_transposeOffset > 0 ? `+${_transposeOffset}` : `${_transposeOffset}`);
     document.getElementById('transpose-value').textContent = label;
+    const valueText = _transposeOffset === 0 ? '0 半音'
+      : (_transposeOffset > 0 ? `+${_transposeOffset} 半音` : `${_transposeOffset} 半音`);
+    e.target.setAttribute('aria-valuenow', _transposeOffset);
+    e.target.setAttribute('aria-valuetext', valueText);
     if (_lastState) _updateUI(_lastState);
   });
 });
@@ -98,7 +152,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ── Transpose adjustment ───────────────────────────────────────────────────
 // Applies _transposeOffset semitones to a recommended key, staying within allowed list.
 function _getAdjustedKey(baseKey) {
-  if (!baseKey || _transposeOffset === 0) return baseKey;
+  if (!baseKey) return null;
+  if (baseKey.mode !== 'major' && baseKey.mode !== 'minor') return null;
+  if (_transposeOffset === 0) return baseKey;
   const newRoot = ((baseKey.root + _transposeOffset) % 12 + 12) % 12;
   const pool = _ALLOWED_KEYS.filter(k => k.mode === baseKey.mode);
 
@@ -156,37 +212,55 @@ function _showMsg(text) {
   bar.classList.remove('hidden');
 }
 
+// Cache last rendered staff accidentals to avoid unnecessary innerHTML writes
+let _lastKeyAcc = undefined;
+let _lastRecAcc = undefined;
+
 function _updateUI(state) {
   if (!state) return;
   _isAnalyzing = !!state.isAnalyzing;
 
   const btn = document.getElementById('start-btn');
   btn.textContent = _isAnalyzing ? '⏹ 停止分析' : '▶ 開始分析';
+  btn.setAttribute('aria-label', _isAnalyzing ? '停止分析' : '開始分析');
   btn.classList.toggle('stop', _isAnalyzing);
 
   // Detected key + staff SVG + progress bar
-  const keyEl   = document.getElementById('detected-key');
-  const staffEl = document.getElementById('key-sig-staff');
-  const progEl  = document.getElementById('key-progress');
+  const keyEl      = document.getElementById('detected-key');
+  const staffEl    = document.getElementById('key-sig-staff');
+  const progBar    = document.getElementById('key-progress-bar');
+  const progInner  = document.getElementById('key-progress-inner');
+  const lockLabel  = document.getElementById('key-locked-label');
   if (state.keyLocked && state.detectedKey) {
-    keyEl.textContent = state.detectedKey.name;
-    staffEl.innerHTML = _renderKeySigSVG(state.detectedKey.acc);
-    progEl.innerHTML  = '<span class="status">已鎖定 ✓</span>';
+    keyEl.textContent = state.detectedKey.name || '—';
+    const ka = typeof state.detectedKey.acc === 'number' ? state.detectedKey.acc : null;
+    if (ka !== _lastKeyAcc) {
+      staffEl.innerHTML = ka !== null ? _renderKeySigSVG(ka) : '';
+      _lastKeyAcc = ka;
+    }
+    progBar.classList.add('hidden');
+    lockLabel.classList.remove('hidden');
   } else if (_isAnalyzing) {
     keyEl.textContent = '偵測中...';
-    staffEl.innerHTML = _renderKeySigSVG(0);
+    if (_lastKeyAcc !== 0) { staffEl.innerHTML = _renderKeySigSVG(0); _lastKeyAcc = 0; }
     const pct = Math.min(100, Math.round(((state.elapsedMs || 0) / KEY_LOCK_MS) * 100));
-    progEl.innerHTML  = `<div class="progress-bar"><div class="progress-inner" style="width:${pct}%"></div></div>`;
+    progInner.style.width = pct + '%'; // update width only — no DOM reconstruction
+    progBar.classList.remove('hidden');
+    lockLabel.classList.add('hidden');
   } else {
     keyEl.textContent = state.detectedKey ? state.detectedKey.name : '—';
-    staffEl.innerHTML = state.detectedKey ? _renderKeySigSVG(state.detectedKey.acc) : '';
-    progEl.innerHTML  = '';
+    const ka = state.detectedKey ? state.detectedKey.acc : null;
+    if (ka !== _lastKeyAcc) {
+      staffEl.innerHTML = ka !== null ? _renderKeySigSVG(ka) : '';
+      _lastKeyAcc = ka;
+    }
+    progBar.classList.add('hidden');
+    lockLabel.classList.add('hidden');
   }
 
   // Max note
   document.getElementById('max-note').textContent = state.maxNote || '—';
-  document.getElementById('max-note-solfege').textContent =
-    state.maxNoteSolfege ? state.maxNoteSolfege : '';
+  document.getElementById('max-note-solfege').textContent = state.maxNoteSolfege || '';
   document.getElementById('note-status').textContent = _isAnalyzing ? '持續追蹤中...' : '';
 
   // BPM
@@ -204,38 +278,86 @@ function _updateUI(state) {
   }
 
   // Recommended key (with transpose offset applied)
-  const recEl    = document.getElementById('recommended-key');
-  const shiftEl  = document.getElementById('shift-info');
-  const recStaff = document.getElementById('rec-sig-staff');
-  const adjKey   = _getAdjustedKey(state.recommendedKey);
+  // adjKey is computed once and reused for both the card and the detail section
+  const adjKey = _getAdjustedKey(state.recommendedKey);
   if (adjKey) {
-    recEl.textContent  = adjKey.name;
-    recStaff.innerHTML = _renderKeySigSVG(adjKey.acc);
+    const recEl = document.getElementById('recommended-key');
+    recEl.textContent = adjKey.name;
+    recEl.style.color = ''; // let .card.highlight .value CSS take over (blue)
+    if (adjKey.acc !== _lastRecAcc) {
+      document.getElementById('rec-sig-staff').innerHTML = _renderKeySigSVG(adjKey.acc);
+      _lastRecAcc = adjKey.acc;
+    }
     const s = adjKey.semitoneShift;
-    const label = s === 0
+    document.getElementById('shift-info').textContent = s === 0
       ? '無需調整'
       : (s > 0 ? `升 ${s} 個半音` : `降 ${Math.abs(s)} 個半音`);
-    shiftEl.textContent = label;
   } else {
-    recEl.textContent  = '—';
-    recStaff.innerHTML = '';
-    shiftEl.textContent = '';
+    // Show contextual hints during analysis so the user knows what to wait for.
+    // Override inline color to grey — .card.highlight .value would force blue,
+    // making status strings look like results.
+    const recKeyEl = document.getElementById('recommended-key');
+    if (_isAnalyzing && !state.keyLocked) {
+      recKeyEl.textContent = '分析中...';
+      recKeyEl.style.color = '#888';
+      document.getElementById('shift-info').textContent = '等待調號鎖定（約 15 秒）';
+    } else if (_isAnalyzing && state.keyLocked) {
+      // Key locked but maxNote not yet confirmed — still collecting note data
+      recKeyEl.textContent = '偵測最高音...';
+      recKeyEl.style.color = '#888';
+      document.getElementById('shift-info').textContent = '繼續播放以確認最高音';
+    } else {
+      recKeyEl.textContent = '—';
+      recKeyEl.style.color = '';
+      document.getElementById('shift-info').textContent = '';
+    }
+    if (_lastRecAcc !== null) {
+      document.getElementById('rec-sig-staff').innerHTML = '';
+      _lastRecAcc = null;
+    }
   }
+
+  // Highlight matching chip in allowed-keys list
+  const activeKeyName = adjKey ? adjKey.name : null;
+  document.querySelectorAll('#d-allowed .chip').forEach(el => {
+    const isActive = el.dataset.key === activeKeyName;
+    el.classList.toggle('active', isActive);
+    if (isActive) { el.setAttribute('aria-current', 'true'); }
+    else { el.removeAttribute('aria-current'); }
+  });
 
   // Detail section
   document.getElementById('d-status').textContent = state.keyLocked
     ? '已鎖定 (15s)'
     : (_isAnalyzing ? '偵測中...' : '—');
 
-  if (state.recommendedKey) {
-    const s = state.recommendedKey.semitoneShift;
+  // Key confidence (0–100%)
+  const confEl = document.getElementById('d-confidence');
+  if (state.detectedKey && state.detectedKey.confidence != null) {
+    const c = state.detectedKey.confidence;
+    confEl.textContent = `${c}%${c < 40 ? ' ⚠ 不確定' : ''}`;
+    confEl.style.color = c < 40 ? '#e28a4a' : '#aaa';
+  } else {
+    confEl.textContent = '—';
+    confEl.style.color = '';
+  }
+
+  // Adjusted shift (reuses adjKey already computed above)
+  if (adjKey) {
+    const s = adjKey.semitoneShift;
     document.getElementById('d-shift').textContent = s === 0
-      ? '0'
+      ? '0（原調）'
       : `${s > 0 ? '+' : ''}${s} 個半音`;
   } else {
     document.getElementById('d-shift').textContent = '—';
   }
 
-  // Error
-  if (state.error) _showMsg(state.error);
+  // Error bar: show on error, clear when resolved
+  const msgBar = document.getElementById('msg-bar');
+  if (state.error) {
+    msgBar.textContent = state.error;
+    msgBar.classList.remove('hidden');
+  } else {
+    msgBar.classList.add('hidden');
+  }
 }
