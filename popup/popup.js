@@ -1,6 +1,7 @@
 // popup/popup.js
 
 const KEY_LOCK_MS = 15000;
+const MAX_SONG_TITLE_LENGTH = 60;
 
 const ALLOWED_KEY_NAMES = [
   'C 大調','G 大調','D 大調','A 大調',
@@ -13,6 +14,9 @@ let _isAnalyzing     = false;
 let _showDetail      = false;
 let _transposeOffset = 0;
 let _lastState       = null;
+// SVG cache: avoid re-rendering staff SVGs every tick when the key hasn't changed
+let _lastKeyAcc      = undefined;
+let _lastRecAcc      = undefined;
 
 // Allowed keys for transpose adjustment (same list as key-detector.js)
 const _ALLOWED_KEYS = [
@@ -65,10 +69,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Show song title (strip " - YouTube" suffix from tab title)
-  const rawTitle = (tab.title || '').replace(/\s*[-–]\s*YouTube\s*$/, '').trim();
-  // Truncate very long titles to prevent layout overflow on edge cases
-  const songTitle = rawTitle.length > 60 ? rawTitle.slice(0, 57) + '…' : rawTitle;
+  const songTitle = _extractSongTitle(tab.title);
   if (songTitle) {
+    const rawTitle = (tab.title || '').replace(/\s*[-–]\s*YouTube\s*$/, '').trim();
     const titleEl = document.getElementById('song-title');
     titleEl.textContent = songTitle;
     titleEl.title = rawTitle; // tooltip always shows full title
@@ -86,13 +89,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       _transposeOffset = Math.max(-3, Math.min(3, local.transposeOffset));
       const slider = document.getElementById('transpose-slider');
       slider.value = _transposeOffset;
-      const label = _transposeOffset === 0 ? '0'
-        : (_transposeOffset > 0 ? `+${_transposeOffset}` : `${_transposeOffset}`);
-      document.getElementById('transpose-value').textContent = label;
-      const valueText = _transposeOffset === 0 ? '0 半音'
-        : (_transposeOffset > 0 ? `+${_transposeOffset} 半音` : `${_transposeOffset} 半音`);
-      slider.setAttribute('aria-valuenow', _transposeOffset);
-      slider.setAttribute('aria-valuetext', valueText);
+      _updateTransposeLabel(_transposeOffset, slider);
     }
   } catch (_) {}
 
@@ -149,15 +146,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         && next.navTimestamp !== (_lastState.navTimestamp || 0);
       if (wasReset) {
         _lastKeyAcc = undefined; _lastRecAcc = undefined; // invalidate SVG caches
-        chrome.tabs.query({ active: true, lastFocusedWindow: true }, ([tab]) => {
-          if (tab && tab.url &&
-              (tab.url.includes('youtube.com/watch') || tab.url.includes('youtube.com/shorts/'))) {
-            const raw = (tab.title || '').replace(/\s*[-–]\s*YouTube\s*$/, '').trim();
-            const t = raw.length > 60 ? raw.slice(0, 57) + '…' : raw;
-            if (t) {
+        chrome.tabs.query({ active: true, lastFocusedWindow: true }, ([t]) => {
+          if (t && t.url &&
+              (t.url.includes('youtube.com/watch') || t.url.includes('youtube.com/shorts/'))) {
+            const title = _extractSongTitle(t.title);
+            if (title) {
               const el = document.getElementById('song-title');
-              el.textContent = t;
-              el.title = raw;
+              el.textContent = title;
+              el.title = (t.title || '').replace(/\s*[-–]\s*YouTube\s*$/, '').trim();
             }
           }
         });
@@ -172,18 +168,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     const parsed = parseInt(e.target.value, 10);
     // Guard: clamp to the slider's allowed range in case of corrupted value
     _transposeOffset = isNaN(parsed) ? 0 : Math.max(-3, Math.min(3, parsed));
-    const label = _transposeOffset === 0 ? '0'
-      : (_transposeOffset > 0 ? `+${_transposeOffset}` : `${_transposeOffset}`);
-    document.getElementById('transpose-value').textContent = label;
-    const valueText = _transposeOffset === 0 ? '0 半音'
-      : (_transposeOffset > 0 ? `+${_transposeOffset} 半音` : `${_transposeOffset} 半音`);
-    e.target.setAttribute('aria-valuenow', _transposeOffset);
-    e.target.setAttribute('aria-valuetext', valueText);
+    _updateTransposeLabel(_transposeOffset, e.target);
     // Persist across popup closes so the user's preference survives re-opens
     chrome.storage.local.set({ transposeOffset: _transposeOffset });
     if (_lastState) _updateUI(_lastState);
   });
 });
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+/** Strips " - YouTube" suffix from a tab title and truncates to MAX_SONG_TITLE_LENGTH. */
+function _extractSongTitle(tabTitle) {
+  const raw = (tabTitle || '').replace(/\s*[-–]\s*YouTube\s*$/, '').trim();
+  return raw.length > MAX_SONG_TITLE_LENGTH ? raw.slice(0, MAX_SONG_TITLE_LENGTH - 3) + '…' : raw;
+}
+
+/** Updates both the display label and ARIA attributes for the transpose slider. */
+function _updateTransposeLabel(offset, sliderEl) {
+  const label = offset === 0 ? '0' : (offset > 0 ? `+${offset}` : `${offset}`);
+  document.getElementById('transpose-value').textContent = label;
+  const valueText = offset === 0 ? '0 半音' : (offset > 0 ? `+${offset} 半音` : `${offset} 半音`);
+  sliderEl.setAttribute('aria-valuenow', offset);
+  sliderEl.setAttribute('aria-valuetext', valueText);
+}
 
 // ── Transpose adjustment ───────────────────────────────────────────────────
 // Applies _transposeOffset semitones to a recommended key, staying within allowed list.
@@ -262,30 +268,27 @@ function _showMsg(text) {
   bar.classList.remove('hidden');
 }
 
-// Cache last rendered staff accidentals to avoid unnecessary innerHTML writes
-let _lastKeyAcc = undefined;
-let _lastRecAcc = undefined;
+// ── UI update helpers ──────────────────────────────────────────────────────
 
-function _updateUI(state) {
-  if (!state) return;
-  _isAnalyzing = !!state.isAnalyzing;
-
+function _updateButton(state) {
   const btn = document.getElementById('start-btn');
   btn.textContent = _isAnalyzing ? '⏹ 停止分析' : '▶ 開始分析';
   btn.setAttribute('aria-label', _isAnalyzing ? '停止分析' : '開始分析');
   btn.classList.toggle('stop', _isAnalyzing);
+}
 
-  // Detected key + staff SVG + progress bar + confidence badge
-  const keyEl      = document.getElementById('detected-key');
-  const staffEl    = document.getElementById('key-sig-staff');
-  const progBar    = document.getElementById('key-progress-bar');
-  const progInner  = document.getElementById('key-progress-inner');
-  const lockLabel  = document.getElementById('key-locked-label');
-  const confWarn   = document.getElementById('key-conf-warn');
+function _updateDetectedKey(state) {
+  const keyEl     = document.getElementById('detected-key');
+  const staffEl   = document.getElementById('key-sig-staff');
+  const progBar   = document.getElementById('key-progress-bar');
+  const progInner = document.getElementById('key-progress-inner');
+  const lockLabel = document.getElementById('key-locked-label');
+  const confWarn  = document.getElementById('key-conf-warn');
+
   if (state.keyLocked && state.detectedKey) {
     keyEl.textContent = state.detectedKey.name || '—';
     // Defensive: guard against null/undefined detectedKey.acc (e.g. schema mismatch after update)
-    const ka = (state.detectedKey && typeof state.detectedKey.acc === 'number') ? state.detectedKey.acc : null;
+    const ka = (typeof state.detectedKey.acc === 'number') ? state.detectedKey.acc : null;
     if (ka !== _lastKeyAcc) {
       staffEl.setAttribute('aria-label', _keySigAriaLabel(ka));
       staffEl.innerHTML = ka !== null ? _renderKeySigSVG(ka) : '';
@@ -324,16 +327,16 @@ function _updateUI(state) {
     lockLabel.classList.add('hidden');
     if (confWarn) confWarn.classList.add('hidden');
   }
+}
 
-  // Max note
+function _updateNoteAndBPM(state) {
   document.getElementById('max-note').textContent = state.maxNote || '—';
   document.getElementById('max-note-solfege').textContent = state.maxNoteSolfege || '';
   document.getElementById('note-status').textContent = _isAnalyzing ? '持續追蹤中...' : '';
 
-  // BPM
-  const bpmEl    = document.getElementById('bpm-value');
-  const bpmUnit  = document.getElementById('bpm-unit');
-  const bpmStat  = document.getElementById('bpm-status');
+  const bpmEl   = document.getElementById('bpm-value');
+  const bpmUnit = document.getElementById('bpm-unit');
+  const bpmStat = document.getElementById('bpm-status');
   if (state.bpm) {
     bpmEl.textContent   = state.bpm;
     bpmUnit.textContent = 'BPM';
@@ -343,10 +346,9 @@ function _updateUI(state) {
     bpmUnit.textContent = '';
     bpmStat.textContent = _isAnalyzing ? '收集中（需約 5 秒）...' : '';
   }
+}
 
-  // Recommended key (with transpose offset applied)
-  // adjKey is computed once and reused for both the card and the detail section
-  const adjKey = _getAdjustedKey(state.recommendedKey);
+function _updateRecommendedKey(state, adjKey) {
   if (adjKey) {
     const recEl = document.getElementById('recommended-key');
     recEl.textContent = adjKey.name;
@@ -394,8 +396,9 @@ function _updateUI(state) {
     if (isActive) { el.setAttribute('aria-current', 'true'); }
     else { el.removeAttribute('aria-current'); }
   });
+}
 
-  // Detail section
+function _updateDetailSection(state, adjKey) {
   document.getElementById('d-status').textContent = state.keyLocked
     ? '已鎖定 (15s)'
     : (_isAnalyzing ? '偵測中...' : '—');
@@ -411,7 +414,7 @@ function _updateUI(state) {
     confEl.style.color = '';
   }
 
-  // Adjusted shift (reuses adjKey already computed above)
+  // Adjusted shift (reuses adjKey already computed in _updateUI)
   if (adjKey) {
     const s = adjKey.semitoneShift;
     document.getElementById('d-shift').textContent = s === 0
@@ -420,8 +423,9 @@ function _updateUI(state) {
   } else {
     document.getElementById('d-shift').textContent = '—';
   }
+}
 
-  // Error bar: show on error, clear when resolved
+function _updateErrorBar(state) {
   const msgBar = document.getElementById('msg-bar');
   if (state.error) {
     msgBar.textContent = state.error;
@@ -429,4 +433,17 @@ function _updateUI(state) {
   } else {
     msgBar.classList.add('hidden');
   }
+}
+
+function _updateUI(state) {
+  if (!state) return;
+  _isAnalyzing = !!state.isAnalyzing;
+  // Compute adjusted key once — reused by recommended-key card and detail section
+  const adjKey = _getAdjustedKey(state.recommendedKey);
+  _updateButton(state);
+  _updateDetectedKey(state);
+  _updateNoteAndBPM(state);
+  _updateRecommendedKey(state, adjKey);
+  _updateDetailSection(state, adjKey);
+  _updateErrorBar(state);
 }

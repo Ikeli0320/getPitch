@@ -39,6 +39,22 @@ const NOTE_WINDOW   = 3;
 const NOTE_MIN_HITS = 2;
 let _noteWindow     = [];
 
+// ── Detection state reset ──────────────────────────────────────────────────
+// Centralised reset used by both startAnalysis() and yt-navigate-finish.
+// Callers that need startTime set to Date.now() must do so after this call.
+function _resetDetectionState() {
+  chromaSum     = new Float32Array(12);
+  frameCount    = 0;
+  maxMidi       = null;
+  detectedKey   = null;
+  keyLocked     = false;
+  startTime     = null;
+  onsetHistory  = [];
+  prevOnsetData = null;
+  _bpmBuffer    = [];
+  _noteWindow   = [];
+}
+
 // ── Message listener ───────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === 'start') startAnalysis();
@@ -64,17 +80,9 @@ async function startAnalysis() {
     return;
   }
 
-  // Reset state
-  chromaSum    = new Float32Array(12);
-  frameCount   = 0;
-  maxMidi      = null;
-  detectedKey  = null;
-  keyLocked    = false;
-  startTime    = Date.now();
-  onsetHistory  = [];
-  prevOnsetData = null;
-  _bpmBuffer    = [];
-  _noteWindow   = [];
+  // Reset all detection state before starting fresh
+  _resetDetectionState();
+  startTime = Date.now();
 
   try {
     // If context was closed (e.g. browser memory pressure), recreate it.
@@ -95,7 +103,7 @@ async function startAnalysis() {
 
     // Guard against stale audioSource pointing to a different video element
     // (e.g. extension loaded mid-video, or missed yt-navigate-finish event).
-    if (audioSource && audioSource.mediaElement !== video) {
+    if (audioSource && audioSource?.mediaElement !== video) {
       audioSource = null;
     }
     if (!audioSource) {
@@ -288,21 +296,12 @@ document.addEventListener('yt-navigate-finish', () => {
   // If YouTube replaced the <video> element, the old audioSource is stale.
   // Reset it so startAnalysis() reconnects to the new element.
   const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
-  if (audioSource && (!video || audioSource.mediaElement !== video)) {
+  if (audioSource && (!video || audioSource?.mediaElement !== video)) {
     audioSource = null;
   }
 
   // Reset all detection state (new video = fresh start)
-  chromaSum     = new Float32Array(12);
-  frameCount    = 0;
-  maxMidi       = null;
-  detectedKey   = null;
-  keyLocked     = false;
-  startTime     = null;
-  onsetHistory  = [];
-  prevOnsetData = null;
-  _bpmBuffer    = [];
-  _noteWindow   = [];
+  _resetDetectionState();
 
   chrome.runtime.sendMessage({ action: 'resetState' }).catch(() => {});
 });

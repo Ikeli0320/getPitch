@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.12] — 2026-04-03
+
+### Changed
+- `popup.js`: split `_updateUI()` (164 lines) into 6 focused helpers
+  (`_updateButton`, `_updateDetectedKey`, `_updateNoteAndBPM`,
+  `_updateRecommendedKey`, `_updateDetailSection`, `_updateErrorBar`)
+- `popup.js`: extract `_extractSongTitle()` helper — eliminates duplicated
+  title-strip-and-truncate logic in `DOMContentLoaded` and `storage.onChanged`
+- `popup.js`: extract `_updateTransposeLabel()` helper — eliminates duplicated
+  slider label/ARIA update logic
+- `popup.js`: add `MAX_SONG_TITLE_LENGTH = 60` constant; move `_lastKeyAcc` /
+  `_lastRecAcc` declarations to module-level variable block (was hoisted from line 266)
+- `content.js`: extract `_resetDetectionState()` — eliminates duplicated 10-field
+  reset in `startAnalysis()` and the `yt-navigate-finish` handler
+- `content.js`: use optional chaining `audioSource?.mediaElement` for defensive null guard
+
+---
+
 ## [1.0.10] — 2026-04-04
 
 ### Changed
