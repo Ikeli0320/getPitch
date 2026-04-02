@@ -5,6 +5,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.17] — 2026-04-03
+
+### Fixed
+- `content/key-detector.js`: Pearson correlation result now clamped to `[-1, 1]`
+  — floating-point rounding can produce values like 1.0000000002 when chroma
+  is perfectly aligned with a profile; clamp prevents confidence scores > 100
+  in that edge case
+
+### Changed
+- `content/content.js`: reuse pre-allocated `_freqBuf` / `_onsetBuf` typed
+  arrays instead of `new Float32Array(...)` on every tick — eliminates ~7 800
+  short-lived allocations per minute during active analysis; buffers are
+  allocated once when the AnalyserNode is created and freed when the
+  AudioContext is closed
+- `content/content.js`: `_onsetTick` copies previous frame with
+  `prevOnsetData.set(_onsetBuf)` (in-place) instead of reassigning the
+  reference — same GC benefit as above
+- `popup/popup.js`: extract SVG layout constants `_SVG_H`, `_SVG_ACC_W`,
+  `_SVG_GAP`, `_SVG_PAD`, `_SVG_MIN_W` — all staff sizing in one place
+- `store-listing.md`: update stale version references `1.0.14` → `1.0.17`
+
+### Tests
+- `tests/test-key-detector.js`: 4 new tests (104 total):
+  - `detectKey(uniform chroma)` → confidence 0, valid object
+  - `detectKey(extreme amplitude 1e8)` → correct key, confidence in [0, 100]
+  - Guards the Pearson clamp added in this version
+
+---
+
 ## [1.0.16] — 2026-04-03
 
 ### Fixed

@@ -249,8 +249,13 @@ function _keySigAriaLabel(acc) {
 // Staff: 5 lines, spacing 8px, top line y=8. Positions use treble clef layout.
 // Sharp order: F C G D A E B  (each position = note's staff y-coordinate)
 // Flat order:  B E A D G C F
-const _SHARP_Y = [8, 20, 4, 16, 28, 12, 24];
-const _FLAT_Y  = [24, 12, 28, 16, 32, 20, 36];
+const _SHARP_Y   = [8, 20, 4, 16, 28, 12, 24];
+const _FLAT_Y    = [24, 12, 28, 16, 32, 20, 36];
+const _SVG_H     = 50;  // total staff height (px)
+const _SVG_ACC_W = 12;  // width allocated per accidental symbol
+const _SVG_GAP   = 2;   // gap between accidental symbols
+const _SVG_PAD   = 4;   // left/right padding inside SVG
+const _SVG_MIN_W = 36;  // minimum SVG width (no-accidentals case)
 
 function _renderKeySigSVG(acc) {
   // Clamp to valid range — standard key signatures have at most 7 accidentals.
@@ -263,20 +268,19 @@ function _renderKeySigSVG(acc) {
   const sym     = isSharp ? '\u266F' : '\u266D'; // ♯ or ♭
 
   const LINES = [8, 16, 24, 32, 40];
-  const H = 50, ACC_W = 12, GAP = 2, PAD = 4;
-  const W = Math.max(PAD + count * (ACC_W + GAP) + PAD, 36);
+  const W = Math.max(_SVG_PAD + count * (_SVG_ACC_W + _SVG_GAP) + _SVG_PAD, _SVG_MIN_W);
 
   const lines = LINES.map(y =>
     `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="#4a4a6a" stroke-width="0.8"/>`
   ).join('');
 
   const accs = yArr.map((y, i) => {
-    const x = PAD + i * (ACC_W + GAP) + ACC_W * 0.5;
+    const x = _SVG_PAD + i * (_SVG_ACC_W + _SVG_GAP) + _SVG_ACC_W * 0.5;
     return `<text x="${x}" y="${y}" font-size="15" fill="#cce0ff" font-family="serif" ` +
            `text-anchor="middle" dominant-baseline="central">${sym}</text>`;
   }).join('');
 
-  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">${lines}${accs}</svg>`;
+  return `<svg width="${W}" height="${_SVG_H}" xmlns="http://www.w3.org/2000/svg">${lines}${accs}</svg>`;
 }
 
 function _showMsg(text) {

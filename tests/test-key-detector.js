@@ -180,5 +180,24 @@ for (const key of ALLOWED_KEYS_TEST) {
   assert(Math.abs(rec.acc) <= 3, `recommendKey(${key.name}) stays within ≤3 accidentals (got acc=${rec && rec.acc})`);
 }
 
+// detectKey — Pearson correlation always in [-1, 1] (float rounding clamp guard)
+console.log('\nTest: detectKey — Pearson correlation clamped to [-1, 1]');
+// Uniform chroma: all 12 bins equal → zero variance → _pearson returns 0
+const uniformChroma = new Float32Array(12).fill(1.0);
+const rUniform = detectKey(uniformChroma);
+assert(typeof rUniform === 'object' && rUniform !== null,
+  'detectKey(uniform) returns an object');
+assert(rUniform.confidence >= 0 && rUniform.confidence <= 100,
+  `detectKey(uniform) confidence in [0,100] (got ${rUniform.confidence})`);
+
+// Extreme-amplitude chroma: values in the millions — ensures clamping guard holds
+const extremeChroma = new Float32Array(12);
+[0,2,4,5,7,9,11].forEach(pc => { extremeChroma[pc] = 1e8; }); // C major, very high amplitude
+const rExtreme = detectKey(extremeChroma);
+assert(rExtreme.root === 0 && rExtreme.mode === 'major',
+  `detectKey(extreme C major amplitude) → C 大調 (got ${rExtreme.name})`);
+assert(rExtreme.confidence >= 0 && rExtreme.confidence <= 100,
+  `detectKey(extreme amplitude) confidence in [0,100] (got ${rExtreme.confidence})`);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

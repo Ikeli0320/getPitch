@@ -33,6 +33,12 @@ let audioSource  = null;
 let tickTimer    = null;
 let onsetTimer   = null;
 
+// Reusable frequency data buffers — allocated once per analysis session when
+// analyserNode is created, then refilled in-place each tick to avoid GC pressure.
+// Must be reset to null whenever analyserNode is torn down (closed context, etc.)
+let _freqBuf     = null; // for _tick()
+let _onsetBuf    = null; // for _onsetTick()
+
 let chromaSum    = new Float32Array(12);
 let frameCount   = 0;
 let maxMidi      = null;
@@ -107,6 +113,8 @@ async function startAnalysis() {
                             // both together — otherwise audioSource.connect(analyserNode)
                             // would wire the new source into a dead-context analyser
                             // that silently returns -Infinity for all frequency bins.
+      _freqBuf    = null;   // buffers belong to the old analyser's bin count
+      _onsetBuf   = null;
     }
     if (!audioCtx) {
       audioCtx = new AudioContext();
@@ -125,6 +133,9 @@ async function startAnalysis() {
       audioSource = audioCtx.createMediaElementSource(video);
       audioSource.connect(analyserNode);
       analyserNode.connect(audioCtx.destination); // Keep audio audible
+      // Allocate reusable buffers sized to this analyser's bin count
+      _freqBuf  = new Float32Array(analyserNode.frequencyBinCount);
+      _onsetBuf = new Float32Array(analyserNode.frequencyBinCount);
     }
   } catch (e) {
     _send({ isAnalyzing: false, error: '音訊初始化失敗: ' + e.message });
@@ -153,16 +164,15 @@ function _tick() {
   // degrades key detection accuracy and wastes CPU.
   if (audioSource && audioSource.mediaElement && audioSource.mediaElement.paused) return;
 
-  const freqData = new Float32Array(analyserNode.frequencyBinCount);
-  analyserNode.getFloatFrequencyData(freqData);
+  analyserNode.getFloatFrequencyData(_freqBuf);
 
   // Accumulate chromagram
-  const frame = buildChromagram(freqData, audioCtx.sampleRate, analyserNode.fftSize);
+  const frame = buildChromagram(_freqBuf, audioCtx.sampleRate, analyserNode.fftSize);
   accumulateChroma(chromaSum, frame);
   frameCount++;
 
   // Track highest note — require ≥2 of last 3 frames to agree before accepting
-  const noteMidi = _findMaxNote(freqData);
+  const noteMidi = _findMaxNote(_freqBuf);
   _noteWindow.push(noteMidi);
   if (_noteWindow.length > NOTE_WINDOW) _noteWindow.shift();
   const noteCounts = {};
@@ -234,26 +244,30 @@ function _findMaxNote(freqData) {
 
 // ── BPM (onset detection) ──────────────────────────────────────────────────
 function _onsetTick() {
-  if (!audioCtx || !analyserNode) return;
+  if (!audioCtx || !analyserNode || !_onsetBuf) return;
   if (audioSource && audioSource.mediaElement && audioSource.mediaElement.paused) return;
-  const freqData = new Float32Array(analyserNode.frequencyBinCount);
-  analyserNode.getFloatFrequencyData(freqData);
+  analyserNode.getFloatFrequencyData(_onsetBuf);
 
   if (prevOnsetData) {
     // Spectral flux: positive dB differences in low-mid range (50–500 Hz)
     // This range captures kick drum and bass transients — most reliable for BPM
     const freqPerBin = audioCtx.sampleRate / analyserNode.fftSize;
     let onset = 0;
-    for (let i = 1; i < freqData.length; i++) {
+    for (let i = 1; i < _onsetBuf.length; i++) {
       const freq = i * freqPerBin;
       if (freq < ONSET_FREQ_MIN_HZ || freq > ONSET_FREQ_MAX_HZ) continue;
-      const diff = freqData[i] - prevOnsetData[i];
+      const diff = _onsetBuf[i] - prevOnsetData[i];
       if (diff > 0) onset += diff;
     }
     onsetHistory.push(onset);
     if (onsetHistory.length > ONSET_HISTORY_MAX) onsetHistory.shift();
   }
-  prevOnsetData = freqData;
+  // Copy current frame into prevOnsetData for next tick's flux calculation
+  if (!prevOnsetData || prevOnsetData.length !== _onsetBuf.length) {
+    prevOnsetData = new Float32Array(_onsetBuf);
+  } else {
+    prevOnsetData.set(_onsetBuf);
+  }
 }
 
 function _estimateBPM() {

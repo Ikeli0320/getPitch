@@ -52,7 +52,9 @@ function _pearson(chroma, profile, rootOffset) {
     const dp = profile[i] - mp;
     num += dc * dp; vc += dc * dc; vp += dp * dp;
   }
-  return (vc === 0 || vp === 0) ? 0 : num / Math.sqrt(vc * vp);
+  if (vc === 0 || vp === 0) return 0;
+  // Clamp to [-1, 1] — floating-point rounding can yield values like 1.0000000002
+  return Math.max(-1, Math.min(1, num / Math.sqrt(vc * vp)));
 }
 
 /**
