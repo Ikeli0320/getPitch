@@ -4,7 +4,15 @@ Thumbs.db
 
 # Node (scripts only, not shipped)
 node_modules/
+package-lock.json
 
 # Build artifacts / packaging
 *.zip
 getPitch-*.zip
+
+# Screenshots tooling (not shipped — only the .png files are committed)
+screenshots/node_modules/
+screenshots/package.json
+screenshots/package-lock.json
+screenshots/*.html
+screenshots/take-screenshots.js

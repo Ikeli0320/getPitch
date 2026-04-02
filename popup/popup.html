@@ -73,9 +73,10 @@
       </div>
       <div class="slider-row">
         <span class="slider-label">微調</span>
+        <span class="sr-only" id="transpose-desc">範圍：-3 到 +3 個半音</span>
         <input type="range" id="transpose-slider" min="-3" max="3" step="1" value="0"
                aria-label="微調（半音）" aria-valuenow="0" aria-valuetext="0 半音"
-               aria-description="範圍：-3 到 +3 個半音">
+               aria-describedby="transpose-desc">
         <span id="transpose-value" class="slider-val">0</span>
       </div>
     </div>

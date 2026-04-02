@@ -75,6 +75,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('song-title-bar').classList.remove('hidden');
   }
 
+  // Restore persisted transpose offset (survives popup closes)
+  chrome.storage.local.get(['transposeOffset'], (r) => {
+    if (typeof r.transposeOffset === 'number') {
+      _transposeOffset = r.transposeOffset;
+      const slider = document.getElementById('transpose-slider');
+      slider.value = _transposeOffset;
+      const label = _transposeOffset === 0 ? '0'
+        : (_transposeOffset > 0 ? `+${_transposeOffset}` : `${_transposeOffset}`);
+      document.getElementById('transpose-value').textContent = label;
+      const valueText = _transposeOffset === 0 ? '0 半音'
+        : (_transposeOffset > 0 ? `+${_transposeOffset} 半音` : `${_transposeOffset} 半音`);
+      slider.setAttribute('aria-valuenow', _transposeOffset);
+      slider.setAttribute('aria-valuetext', valueText);
+      if (_lastState) _updateUI(_lastState);
+    }
+  });
+
   // Load latest state from background
   let state = null;
   try { state = await chrome.runtime.sendMessage({ action: 'getState' }); } catch (_) {}
@@ -156,6 +173,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       : (_transposeOffset > 0 ? `+${_transposeOffset} 半音` : `${_transposeOffset} 半音`);
     e.target.setAttribute('aria-valuenow', _transposeOffset);
     e.target.setAttribute('aria-valuetext', valueText);
+    // Persist across popup closes so the user's preference survives re-opens
+    chrome.storage.local.set({ transposeOffset: _transposeOffset });
     if (_lastState) _updateUI(_lastState);
   });
 });
