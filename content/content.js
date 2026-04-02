@@ -105,6 +105,7 @@ function _tick() {
     elapsedMs:      elapsed,
     detectedKey:    keyLocked ? detectedKey : null,
     maxNote:        maxMidi !== null ? midiToName(maxMidi) : null,
+    maxNoteSolfege: maxMidi !== null ? midiToSolfege(maxMidi) : null,
     recommendedKey: recommended,
     error:          null,
   });

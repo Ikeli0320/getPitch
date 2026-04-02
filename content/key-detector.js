@@ -75,6 +75,29 @@ function midiToName(midi) {
   return NOTE_NAMES[pc] + octave;
 }
 
+// Chinese solfège names for each pitch class (0=C … 11=B)
+const SOLFEGE_NAMES = ['Do','升Do','Re','升Re','Mi','Fa','升Fa','Sol','升Sol','La','升La','Si'];
+
+/**
+ * Converts a MIDI note number to a Chinese solfège description.
+ * e.g. 74 (D5) → "高音Re"
+ * Octave 3 = 低音, octave 4 = (none), octave 5 = 高音, ≥6 = 超高音
+ * @param {number} midi
+ * @returns {string}
+ */
+function midiToSolfege(midi) {
+  const octave = Math.floor(midi / 12) - 1;
+  const pc = ((midi % 12) + 12) % 12;
+  const note = SOLFEGE_NAMES[pc];
+  let prefix;
+  if (octave <= 2)      prefix = '倍低音';
+  else if (octave === 3) prefix = '低音';
+  else if (octave === 4) prefix = '';
+  else if (octave === 5) prefix = '高音';
+  else                   prefix = '超高音';
+  return prefix + note;
+}
+
 /**
  * Recommends the best key to sing in.
  * - Transposes so highest note ≤ D5 (MIDI 74)
@@ -109,4 +132,4 @@ function recommendKey(detectedKey, maxMidi) {
   return { ...best, semitoneShift: actualShift };
 }
 
-if (typeof module !== 'undefined') module.exports = { detectKey, recommendKey, midiToName, ALL_KEYS };
+if (typeof module !== 'undefined') module.exports = { detectKey, recommendKey, midiToName, midiToSolfege, ALL_KEYS };

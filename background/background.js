@@ -5,6 +5,7 @@ const DEFAULT_STATE = {
   keyLocked:      false,
   detectedKey:    null,
   maxNote:        null,
+  maxNoteSolfege: null,
   recommendedKey: null,
   elapsedMs:      0,
   error:          null,

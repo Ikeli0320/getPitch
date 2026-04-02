@@ -96,6 +96,8 @@ function _updateUI(state) {
 
   // Max note
   document.getElementById('max-note').textContent = state.maxNote || '—';
+  document.getElementById('max-note-solfege').textContent =
+    state.maxNoteSolfege ? `（${state.maxNoteSolfege}）` : '';
   document.getElementById('note-status').textContent = _isAnalyzing ? '持續追蹤中...' : '';
 
   // Recommended key

@@ -1,5 +1,5 @@
 // tests/test-key-detector.js
-const { detectKey, recommendKey, midiToName } = require('../content/key-detector.js');
+const { detectKey, recommendKey, midiToName, midiToSolfege } = require('../content/key-detector.js');
 
 let passed = 0, failed = 0;
 function assert(cond, msg) {
@@ -41,6 +41,15 @@ console.log('\nTest: recommendKey — max=B4(71), key=C major → target=Eb(allo
 // shift=+3, targetRoot=(0+3)%12=3=Eb(3b,allowed)
 const rec3 = recommendKey({ root: 0, mode: 'major' }, 71);
 assert(rec3.name === 'Eb 大調', `Rec=Eb 大調 (got ${rec3.name})`);
+
+// midiToSolfege
+console.log('\nTest: midiToSolfege');
+assert(midiToSolfege(74) === '高音Re',   `midiToSolfege(74)='高音Re' (got ${midiToSolfege(74)})`);
+assert(midiToSolfege(60) === 'Do',       `midiToSolfege(60)='Do' (got ${midiToSolfege(60)})`);
+assert(midiToSolfege(69) === 'La',       `midiToSolfege(69)='La' (got ${midiToSolfege(69)})`);
+assert(midiToSolfege(72) === '高音Do',   `midiToSolfege(72)='高音Do' (got ${midiToSolfege(72)})`);
+assert(midiToSolfege(48) === '低音Do',   `midiToSolfege(48)='低音Do' (got ${midiToSolfege(48)})`);
+assert(midiToSolfege(84) === '超高音Do', `midiToSolfege(84)='超高音Do' (got ${midiToSolfege(84)})`);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
