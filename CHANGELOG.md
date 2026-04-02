@@ -5,6 +5,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.14] — 2026-04-03
+
+### Fixed
+- `popup.html` / `popup.js`: `aria-label` on recommended key staff was not reset to `'—'`
+  when the staff was cleared; screen readers could announce a stale key name
+
+### Changed
+- `popup.js`: cache chip `NodeList` after creation (`_chips`) — avoids
+  `querySelectorAll('#d-allowed .chip')` on every storage update (~2×/sec during analysis)
+- `popup.js`: Unicode-safe song title truncation — use `[...str]` spread so emoji and
+  multi-codepoint characters are never split mid-glyph
+- `popup.js`: add comment clarifying `_ALLOWED_KEYS` is the |acc| ≤ 3 subset of all 24 keys
+- `background.js`: coerce `isAnalyzing`, `keyLocked`, `elapsedMs` to correct types after
+  whitelist filtering — guards against content-script type-mismatch messages corrupting UI state
+- `background.js`: improve `activeTabId = -1` sentinel comment to clarify -1 vs null semantics
+
+### Tests
+- `tests/test-key-detector.js`: 55 new tests (100 total):
+  - `detectKey` confidence always in [0, 100] across all 24 key profiles
+  - `D5_MIDI` exported constant correctness
+  - `recommendKey` returns non-null with |acc| ≤ 3 for all 14 allowed keys at maxMidi = D5
+
+---
+
 ## [1.0.13] — 2026-04-03
 
 ### Changed

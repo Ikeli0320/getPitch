@@ -66,9 +66,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (activeTabId !== null) {
       _sendToTab(activeTabId, { action: 'stop' });
     }
-    // Set sentinel synchronously so a concurrent startAnalysis (rapid double-click
-    // before tabs.query resolves) sees a non-null activeTabId and stops the pending
-    // tab instead of silently spawning a second analysis session.
+    // Sentinel: -1 means "start in progress — tabs.query not yet resolved".
+    // Distinct from null ("not analyzing") and a real tab ID (>= 0).
+    // A concurrent startAnalysis sees -1 and stops the pending "ghost" session
+    // via _sendToTab(-1, stop) (which no-ops in Chrome) rather than skipping the stop.
     activeTabId = -1;
     // Reset all analysis fields immediately so the popup shows a clean slate
     // before the content script's first tick arrives.
@@ -126,6 +127,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (Object.prototype.hasOwnProperty.call(msg.data, k)) clean[k] = msg.data[k];
       }
     }
+    // Coerce critical boolean/numeric fields so a type-mismatch message
+    // (e.g. isAnalyzing: "true") can't lock the UI into an inconsistent state.
+    if ('isAnalyzing' in clean) clean.isAnalyzing = !!clean.isAnalyzing;
+    if ('keyLocked'   in clean) clean.keyLocked   = !!clean.keyLocked;
+    if ('elapsedMs'   in clean && clean.elapsedMs !== null)
+      clean.elapsedMs = Number(clean.elapsedMs) || 0;
     state = { ...state, ...clean };
     // Throttle storage writes during active analysis to ~2×/sec.
     // Write immediately on non-analyzing updates (error, stop) so UI stays in sync.

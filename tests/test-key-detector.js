@@ -1,5 +1,5 @@
 // tests/test-key-detector.js
-const { detectKey, recommendKey, midiToName, midiToSolfege } = require('../content/key-detector.js');
+const { detectKey, recommendKey, midiToName, midiToSolfege, ALL_KEYS, D5_MIDI } = require('../content/key-detector.js');
 
 let passed = 0, failed = 0;
 function assert(cond, msg) {
@@ -151,6 +151,34 @@ console.log('\nTest: recommendKey — mode guard covers spread objects');
 const spoofedKey = { ...{ root: 0, mode: 'major', name: 'C 大調', acc: 0 }, mode: 'mixolydian' };
 assert(recommendKey(spoofedKey, 74) === null,
   'recommendKey rejects mode:mixolydian (not major/minor)');
+
+// detectKey — confidence always in [0, 100] for all 24 key profiles
+console.log('\nTest: detectKey — confidence clamped to [0, 100] for all 24 keys');
+for (const key of ALL_KEYS) {
+  const testChroma = new Float32Array(12);
+  // Feed the key's own scale pcs to get a decisive result
+  const major = [0,2,4,5,7,9,11];
+  const minor = [0,2,3,5,7,8,10];
+  (key.mode === 'major' ? major : minor).forEach(pc => { testChroma[(pc + key.root) % 12] = 1.0; });
+  const result = detectKey(testChroma);
+  assert(result.confidence >= 0 && result.confidence <= 100,
+    `confidence in [0,100] for ${key.name} (got ${result.confidence})`);
+}
+
+// D5_MIDI exported constant matches the expected D5 value
+console.log('\nTest: D5_MIDI exported constant');
+assert(D5_MIDI === 74, `D5_MIDI = 74 (got ${D5_MIDI})`);
+assert(midiToName(D5_MIDI) === 'D5', `midiToName(D5_MIDI) = 'D5' (got ${midiToName(D5_MIDI)})`);
+
+// recommendKey — all 14 allowed keys produce a recommendation at maxMidi = D5_MIDI
+console.log('\nTest: recommendKey — all 14 allowed keys return non-null at maxMidi = D5');
+const ALLOWED_KEYS_TEST = ALL_KEYS.filter(k => Math.abs(k.acc) <= 3);
+assert(ALLOWED_KEYS_TEST.length === 14, `14 allowed keys (got ${ALLOWED_KEYS_TEST.length})`);
+for (const key of ALLOWED_KEYS_TEST) {
+  const rec = recommendKey(key, D5_MIDI);
+  assert(rec !== null, `recommendKey(${key.name}, D5) is not null`);
+  assert(Math.abs(rec.acc) <= 3, `recommendKey(${key.name}) stays within ≤3 accidentals (got acc=${rec && rec.acc})`);
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

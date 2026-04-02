@@ -13,8 +13,11 @@ let _lastState       = null;
 // SVG cache: avoid re-rendering staff SVGs every tick when the key hasn't changed
 let _lastKeyAcc      = undefined;
 let _lastRecAcc      = undefined;
+// Chip cache: populated once in DOMContentLoaded — avoids querySelectorAll every tick
+let _chips           = null;
 
-// Allowed keys for transpose adjustment (same list as key-detector.js)
+// Allowed keys for transpose adjustment: subset of ALL_KEYS from key-detector.js
+// restricted to |acc| ≤ 3 (max 3 sharps or 3 flats) — practical range for karaoke.
 const _ALLOWED_KEYS = [
   { root:0,  mode:'major', name:'C 大調',  acc:0  },
   { root:7,  mode:'major', name:'G 大調',  acc:1  },
@@ -50,6 +53,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     el.textContent = name;
     allowedEl.appendChild(el);
   });
+  // Cache chip elements after creation to avoid repeated querySelectorAll on every state update
+  _chips = allowedEl.querySelectorAll('.chip');
 
   // Check if we're on a YouTube watch or Shorts page
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -175,10 +180,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-/** Strips " - YouTube" suffix from a tab title and truncates to MAX_SONG_TITLE_LENGTH. */
+/** Strips " - YouTube" suffix from a tab title and truncates to MAX_SONG_TITLE_LENGTH.
+ *  Uses spread operator for Unicode-safe truncation — prevents splitting emoji or
+ *  multi-codepoint characters that `.slice()` on a string would break. */
 function _extractSongTitle(tabTitle) {
   const raw = (tabTitle || '').replace(/\s*[-–]\s*YouTube\s*$/, '').trim();
-  return raw.length > MAX_SONG_TITLE_LENGTH ? raw.slice(0, MAX_SONG_TITLE_LENGTH - 3) + '…' : raw;
+  const chars = [...raw]; // Unicode code-point aware (handles emoji, CJK, etc.)
+  return chars.length > MAX_SONG_TITLE_LENGTH
+    ? chars.slice(0, MAX_SONG_TITLE_LENGTH - 1).join('') + '…'
+    : raw;
 }
 
 /** Updates both the display label and ARIA attributes for the transpose slider. */
@@ -382,14 +392,16 @@ function _updateRecommendedKey(state, adjKey) {
       document.getElementById('shift-info').textContent = '';
     }
     if (_lastRecAcc !== null) {
-      document.getElementById('rec-sig-staff').innerHTML = '';
+      const recStaff = document.getElementById('rec-sig-staff');
+      recStaff.innerHTML = '';
+      recStaff.setAttribute('aria-label', '—'); // reset so screen readers don't announce stale key name
       _lastRecAcc = null;
     }
   }
 
-  // Highlight matching chip in allowed-keys list
+  // Highlight matching chip in allowed-keys list (_chips cached on init, not re-queried every tick)
   const activeKeyName = adjKey ? adjKey.name : null;
-  document.querySelectorAll('#d-allowed .chip').forEach(el => {
+  if (_chips) _chips.forEach(el => {
     const isActive = el.dataset.key === activeKeyName;
     el.classList.toggle('active', isActive);
     if (isActive) { el.setAttribute('aria-current', 'true'); }
