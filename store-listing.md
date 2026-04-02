@@ -63,7 +63,7 @@ Music
 3. Popup showing the transpose slider in use
 
 ## Privacy Policy URL
-Host `privacy-policy.html` at your GitHub Pages or any public URL, then enter it here.
+https://ikeli0320.github.io/getPitch/privacy-policy.html
 
 ## Pricing
 Free
@@ -71,8 +71,7 @@ Free
 ## Submission checklist
 - [x] Icons: icon16.png, icon32.png, icon48.png, icon128.png — generated via `node scripts/generate-icons.js`
 - [x] ZIP built: `getPitch-1.0.0.zip` — run PowerShell command below to rebuild
-- [ ] **BLOCKER — Privacy policy hosted at a public URL**
-      → Upload `privacy-policy.html` to GitHub Pages (e.g. `https://<user>.github.io/getPitch/privacy-policy.html`)
+- [x] **Privacy policy hosted** — https://ikeli0320.github.io/getPitch/privacy-policy.html
       → Enter that URL in Chrome Web Store Developer Dashboard → Store listing → Privacy practices
 - [ ] At least 3 screenshots uploaded (1280×800 or 640×400) — see screenshot list above
 - [ ] Developer account verified on Chrome Web Store Dashboard ($5 one-time fee)
