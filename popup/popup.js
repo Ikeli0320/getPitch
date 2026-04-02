@@ -30,6 +30,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  // Show song title (strip " - YouTube" suffix from tab title)
+  const songTitle = (tab.title || '').replace(/\s*[-–]\s*YouTube\s*$/, '').trim();
+  if (songTitle) {
+    document.getElementById('song-title').textContent = songTitle;
+    document.getElementById('song-title-bar').classList.remove('hidden');
+  }
+
   // Load latest state from background
   const state = await chrome.runtime.sendMessage({ action: 'getState' });
   if (state) _updateUI(state);

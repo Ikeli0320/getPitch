@@ -19,6 +19,18 @@ header {
 header h1 { font-size: 18px; font-weight: 600; color: #fff; }
 .logo { font-size: 20px; }
 
+#song-title-bar {
+  background: #0f3460;
+  border-radius: 6px;
+  padding: 7px 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #cce0ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 #msg-bar {
   background: #2d2d44;
   border-radius: 6px;
