@@ -1,5 +1,5 @@
 // tests/test-chromagram.js
-const { buildChromagram, accumulateChroma } = require('../content/chromagram.js');
+const { buildChromagram, accumulateChroma, CHROMA_FREQ_MIN_HZ, CHROMA_FREQ_MAX_HZ } = require('../content/chromagram.js');
 
 let passed = 0, failed = 0;
 function assert(cond, msg) {
@@ -84,6 +84,41 @@ const emptyFreq = new Float32Array(2048).fill(-80);
 let threw = false;
 try { buildChromagram(emptyFreq, 44100, 4096); } catch (_) { threw = true; }
 assert(!threw, 'buildChromagram handles all-silence without throwing');
+
+// FFT size 8192 — larger FFT for better low-frequency resolution
+console.log('\nTest: FFT size 8192');
+const a4_8192 = new Float32Array(4096).fill(-100);
+const a4Bin8192 = Math.round(440 / (44100 / 8192));
+a4_8192[a4Bin8192] = -10;
+const a4c8192 = buildChromagram(a4_8192, 44100, 8192);
+assert(a4c8192.indexOf(Math.max(...a4c8192)) === 9, 'A4 at fftSize=8192 maps to pitch class 9');
+
+// dB → linear magnitude conversion: -20 dB should give magnitude 0.1
+console.log('\nTest: dB → linear magnitude conversion');
+const dbFreq = new Float32Array(2048).fill(-100);
+const a4BinDb = Math.round(440 / (44100 / 4096));
+dbFreq[a4BinDb] = -20; // exactly -20 dB → linear = 10^(-20/20) = 0.1
+const dbChroma = buildChromagram(dbFreq, 44100, 4096);
+const maxEnergy = Math.max(...dbChroma);
+// At -20 dB, magnitude = 0.1; allow small rounding tolerance
+assert(Math.abs(maxEnergy - 0.1) < 0.001, `−20 dB → linear magnitude ≈ 0.1 (got ${maxEnergy.toFixed(4)})`);
+
+// CHROMA_FREQ_MIN/MAX constants match the intended C3–C6 range
+console.log('\nTest: CHROMA_FREQ_MIN/MAX exported constants');
+assert(CHROMA_FREQ_MIN_HZ === 130, `CHROMA_FREQ_MIN_HZ = 130 Hz (C3) — got ${CHROMA_FREQ_MIN_HZ}`);
+assert(CHROMA_FREQ_MAX_HZ === 1047, `CHROMA_FREQ_MAX_HZ = 1047 Hz (C6) — got ${CHROMA_FREQ_MAX_HZ}`);
+// Frequency just below minimum should produce no chroma energy
+const belowMin = new Float32Array(2048).fill(-100);
+const belowMinBin = Math.round((CHROMA_FREQ_MIN_HZ - 10) / (44100 / 4096));
+belowMin[belowMinBin] = -10;
+const belowMinC = buildChromagram(belowMin, 44100, 4096);
+assert(belowMinC.reduce((a, b) => a + b, 0) < 0.001, 'Freq below CHROMA_FREQ_MIN_HZ is excluded');
+// Frequency just above maximum should produce no chroma energy
+const aboveMax = new Float32Array(2048).fill(-100);
+const aboveMaxBin = Math.round((CHROMA_FREQ_MAX_HZ + 50) / (44100 / 4096));
+aboveMax[aboveMaxBin] = -10;
+const aboveMaxC = buildChromagram(aboveMax, 44100, 4096);
+assert(aboveMaxC.reduce((a, b) => a + b, 0) < 0.001, 'Freq above CHROMA_FREQ_MAX_HZ is excluded');
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

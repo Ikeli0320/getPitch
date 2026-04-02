@@ -5,6 +5,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.13] — 2026-04-03
+
+### Changed
+- `chromagram.js`: replace magic numbers 130/1047 with named constants
+  `CHROMA_FREQ_MIN_HZ` / `CHROMA_FREQ_MAX_HZ`; export them for tests
+- `content.js`: add `BPM_MIN = 60` / `BPM_MAX = 180` constants; replace
+  magic numbers in `_estimateBPM()`; rename local `_noteCounts` → `noteCounts`
+- `key-detector.js`: extract module-level `D5_MIDI = 74` constant; export it
+- `popup.js`: add `CONFIDENCE_WARN_THRESHOLD = 40`, `TRANSPOSE_MIN = -3`,
+  `TRANSPOSE_MAX = 3`; derive `ALLOWED_KEY_NAMES` from `_ALLOWED_KEYS.map(k => k.name)`
+  — eliminates duplicate key-name list
+- `popup.html`: correct initial `aria-label` on staff SVG divs from
+  `'無升降記號'` to `'—'` (key is unknown until detected, not C major)
+- `popup.css`: replace deprecated `clip: rect(0,0,0,0)` in `.sr-only` with
+  `clip-path: inset(50%)` per current accessibility best practice
+- `package.json`: bump `engines.node` from `>=16` (EOL) to `>=18`
+- `README.md`: expand constants table with all 14 constants; fix dev command
+  (`npm test` instead of manual node invocations)
+
+### Tests
+- `tests/test-chromagram.js`: add 6 new tests (18 total):
+  - FFT size 8192
+  - dB → linear magnitude conversion (−20 dB → 0.1)
+  - `CHROMA_FREQ_MIN/MAX_HZ` exported values and boundary exclusion
+
+---
+
 ## [1.0.12] — 2026-04-03
 
 ### Changed

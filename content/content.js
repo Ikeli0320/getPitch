@@ -14,6 +14,9 @@ const ONSET_FREQ_MAX_HZ   = 500;
 // If chromaEnergy stays near-zero beyond this threshold, the video is likely
 // muted or has no audio track — show an error rather than silently hanging.
 const SILENT_TIMEOUT_MS   = 20000;
+// BPM autocorrelation search range — songs outside this range are rare in practice.
+const BPM_MIN = 60;
+const BPM_MAX = 180;
 
 let audioCtx     = null;
 let analyserNode = null;
@@ -153,10 +156,10 @@ function _tick() {
   const noteMidi = _findMaxNote(freqData);
   _noteWindow.push(noteMidi);
   if (_noteWindow.length > NOTE_WINDOW) _noteWindow.shift();
-  const _noteCounts = {};
-  for (const n of _noteWindow) { if (n !== null) _noteCounts[n] = (_noteCounts[n] || 0) + 1; }
-  const confirmed = Object.keys(_noteCounts)
-    .filter(n => _noteCounts[n] >= NOTE_MIN_HITS)
+  const noteCounts = {};
+  for (const n of _noteWindow) { if (n !== null) noteCounts[n] = (noteCounts[n] || 0) + 1; }
+  const confirmed = Object.keys(noteCounts)
+    .filter(n => noteCounts[n] >= NOTE_MIN_HITS)
     .map(Number);
   if (confirmed.length > 0) {
     const top = Math.max(...confirmed);
@@ -248,8 +251,8 @@ function _estimateBPM() {
   if (n < 100) return null; // Need ~5 seconds of data
 
   const ticksPerSec  = 1000 / ONSET_TICK_MS; // 20
-  const minPeriod    = Math.round(ticksPerSec * 60 / 180); // period for 180 BPM (fastest)
-  const maxPeriod    = Math.round(ticksPerSec * 60 / 60);  // period for  60 BPM (slowest)
+  const minPeriod    = Math.round(ticksPerSec * 60 / BPM_MAX); // period for BPM_MAX (fastest)
+  const maxPeriod    = Math.round(ticksPerSec * 60 / BPM_MIN); // period for BPM_MIN (slowest)
 
   // Remove DC offset
   const mean = onsetHistory.reduce((a, b) => a + b, 0) / n;
@@ -267,7 +270,7 @@ function _estimateBPM() {
 
   if (!bestPeriod) return null;
   const bpm = Math.round((ticksPerSec * 60) / bestPeriod);
-  if (bpm < 60 || bpm > 180) return null;
+  if (bpm < BPM_MIN || bpm > BPM_MAX) return null;
 
   // Median filter over last 5 estimates to prevent flickering
   _bpmBuffer.push(bpm);

@@ -47,8 +47,7 @@ No build step required.
 
 ```bash
 # Run unit tests
-node tests/test-chromagram.js
-node tests/test-key-detector.js
+npm test
 
 # Generate icons
 node scripts/generate-icons.js
@@ -73,15 +72,33 @@ content scripts (YouTube page)          background.js        popup.js
 
 Content scripts are injected declaratively (no `scripting` permission). State lives in `chrome.storage.session` and is restored on MV3 service-worker eviction.
 
-### Key constants (`content/content.js`)
+### Key constants
+
+`content/content.js`:
 
 | Constant | Default | Effect |
 |---|---|---|
 | `KEY_LOCK_MS` | 15 000 | ms of audio before key locks |
-| `SILENT_TIMEOUT_MS` | 20 000 | ms of silence before giving up |
-| `NOISE_FLOOR_DB` | −55 | dB threshold for note detection |
-| `NOTE_WINDOW` | 3 | rolling frames for note confirmation |
+| `TICK_MS` | 200 | main analysis interval (ms) |
+| `SILENT_TIMEOUT_MS` | 20 000 | ms of near-zero chroma before "no audio" error |
+| `NOISE_FLOOR_DB` | −55 | dB threshold for note peak detection |
+| `FREQ_MIN_HZ` | 130 | lower bound for note tracking (~C3) |
+| `FREQ_MAX_HZ` | 1 175 | upper bound for note tracking (~D6) |
+| `ONSET_TICK_MS` | 50 | BPM onset sampling interval (ms) |
+| `ONSET_HISTORY_MAX` | 400 | max onset samples (~20 s window) |
+| `ONSET_FREQ_MIN_HZ` | 50 | BPM onset band lower bound (kick/bass) |
+| `ONSET_FREQ_MAX_HZ` | 500 | BPM onset band upper bound |
+| `BPM_MIN` | 60 | autocorrelation search floor |
+| `BPM_MAX` | 180 | autocorrelation search ceiling |
+| `NOTE_WINDOW` | 3 | rolling frame window for note confirmation |
 | `NOTE_MIN_HITS` | 2 | min agreeing frames to confirm a note |
+
+`content/chromagram.js`:
+
+| Constant | Default | Effect |
+|---|---|---|
+| `CHROMA_FREQ_MIN_HZ` | 130 | lower bound for key-detection chroma (~C3) |
+| `CHROMA_FREQ_MAX_HZ` | 1 047 | upper bound for key-detection chroma (~C6, tighter than note tracking to reduce harmonic noise) |
 
 ## Privacy Policy
 

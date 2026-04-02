@@ -7,6 +7,11 @@
  * @param {number} fftSize        - AnalyserNode fftSize
  * @returns {Float32Array}        - 12-element pitch-class energy (C=0 … B=11)
  */
+// Frequency range for key detection — tighter than content.js FREQ_MAX_HZ (1175 Hz for note
+// tracking) because higher harmonics add noise to the chromagram without improving key accuracy.
+const CHROMA_FREQ_MIN_HZ = 130;  // C3
+const CHROMA_FREQ_MAX_HZ = 1047; // C6
+
 function buildChromagram(freqData, sampleRate, fftSize) {
   const chroma = new Float32Array(12);
   const freqPerBin = sampleRate / fftSize;
@@ -16,7 +21,7 @@ function buildChromagram(freqData, sampleRate, fftSize) {
     if (dB < -80) continue; // near-silence
 
     const freq = bin * freqPerBin;
-    if (freq < 130 || freq > 1047) continue; // C3–C6: core harmonic range for key detection
+    if (freq < CHROMA_FREQ_MIN_HZ || freq > CHROMA_FREQ_MAX_HZ) continue; // C3–C6: core harmonic range
 
     const midi = 69 + 12 * Math.log2(freq / 440);
     const pc = ((Math.round(midi) % 12) + 12) % 12;
@@ -35,4 +40,4 @@ function accumulateChroma(sum, frame) {
   for (let i = 0; i < 12; i++) sum[i] += frame[i];
 }
 
-if (typeof module !== 'undefined') module.exports = { buildChromagram, accumulateChroma };
+if (typeof module !== 'undefined') module.exports = { buildChromagram, accumulateChroma, CHROMA_FREQ_MIN_HZ, CHROMA_FREQ_MAX_HZ };

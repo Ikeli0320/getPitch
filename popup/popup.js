@@ -1,14 +1,10 @@
 // popup/popup.js
 
-const KEY_LOCK_MS = 15000;
-const MAX_SONG_TITLE_LENGTH = 60;
-
-const ALLOWED_KEY_NAMES = [
-  'C 大調','G 大調','D 大調','A 大調',
-  'F 大調','Bb 大調','Eb 大調',
-  'A 小調','E 小調','B 小調','F# 小調',
-  'D 小調','G 小調','C 小調',
-];
+const KEY_LOCK_MS            = 15000;
+const MAX_SONG_TITLE_LENGTH  = 60;
+const CONFIDENCE_WARN_THRESHOLD = 40; // ⚠ badge shown below this confidence %
+const TRANSPOSE_MIN          = -3;
+const TRANSPOSE_MAX          = 3;
 
 let _isAnalyzing     = false;
 let _showDetail      = false;
@@ -35,6 +31,9 @@ const _ALLOWED_KEYS = [
   { root:7,  mode:'minor', name:'G 小調',  acc:-2 },
   { root:0,  mode:'minor', name:'C 小調',  acc:-3 },
 ];
+
+// Derive chip names from the single source of truth — avoids maintaining a second list
+const ALLOWED_KEY_NAMES = _ALLOWED_KEYS.map(k => k.name);
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Show version from manifest so it stays in sync automatically
@@ -86,7 +85,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (typeof local.transposeOffset === 'number') {
       // Clamp in case the stored value is outside the current allowed range
       // (e.g., saved with a previous version that had a wider range)
-      _transposeOffset = Math.max(-3, Math.min(3, local.transposeOffset));
+      _transposeOffset = Math.max(TRANSPOSE_MIN, Math.min(TRANSPOSE_MAX, local.transposeOffset));
       const slider = document.getElementById('transpose-slider');
       slider.value = _transposeOffset;
       _updateTransposeLabel(_transposeOffset, slider);
@@ -167,7 +166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('transpose-slider').addEventListener('input', (e) => {
     const parsed = parseInt(e.target.value, 10);
     // Guard: clamp to the slider's allowed range in case of corrupted value
-    _transposeOffset = isNaN(parsed) ? 0 : Math.max(-3, Math.min(3, parsed));
+    _transposeOffset = isNaN(parsed) ? 0 : Math.max(TRANSPOSE_MIN, Math.min(TRANSPOSE_MAX, parsed));
     _updateTransposeLabel(_transposeOffset, e.target);
     // Persist across popup closes so the user's preference survives re-opens
     chrome.storage.local.set({ transposeOffset: _transposeOffset });
@@ -299,7 +298,7 @@ function _updateDetectedKey(state) {
     // Show low-confidence warning inline in the key card
     const c = state.detectedKey.confidence;
     if (confWarn) {
-      if (typeof c === 'number' && c < 40) {
+      if (typeof c === 'number' && c < CONFIDENCE_WARN_THRESHOLD) {
         confWarn.classList.remove('hidden');
         confWarn.setAttribute('title', `偵測信心 ${c}%，結果可能不準確`);
       } else {
@@ -407,8 +406,8 @@ function _updateDetailSection(state, adjKey) {
   const confEl = document.getElementById('d-confidence');
   if (state.detectedKey && state.detectedKey.confidence != null) {
     const c = state.detectedKey.confidence;
-    confEl.textContent = `${c}%${c < 40 ? ' ⚠ 不確定' : ''}`;
-    confEl.style.color = c < 40 ? '#e28a4a' : '#aaa';
+    confEl.textContent = `${c}%${c < CONFIDENCE_WARN_THRESHOLD ? ' ⚠ 不確定' : ''}`;
+    confEl.style.color = c < CONFIDENCE_WARN_THRESHOLD ? '#e28a4a' : '#aaa';
   } else {
     confEl.textContent = '—';
     confEl.style.color = '';

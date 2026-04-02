@@ -36,6 +36,10 @@ const ALL_KEYS = [
 
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
+// Upper note ceiling for singing key recommendation.
+// D5 is the highest comfortable note for most amateur singers in karaoke contexts.
+const D5_MIDI = 74;
+
 // Pearson correlation: rotate chroma by rootOffset, compare against profile
 function _pearson(chroma, profile, rootOffset) {
   const n = 12;
@@ -116,10 +120,9 @@ function midiToSolfege(midi) {
  */
 function recommendKey(detectedKey, maxMidi) {
   if (!detectedKey || (detectedKey.mode !== 'major' && detectedKey.mode !== 'minor')) return null;
-  const D5 = 74;
   // Normalize to nearest octave-equivalent shift in [-6, +6].
   // Prevents showing "-12 semitones" when the key name doesn't actually change.
-  let shift = D5 - maxMidi;
+  let shift = D5_MIDI - maxMidi;
   shift = ((shift % 12) + 12) % 12;
   if (shift > 6) shift -= 12;
   const targetRoot = ((detectedKey.root + shift) % 12 + 12) % 12;
@@ -143,4 +146,4 @@ function recommendKey(detectedKey, maxMidi) {
   return { ...best, semitoneShift: actualShift };
 }
 
-if (typeof module !== 'undefined') module.exports = { detectKey, recommendKey, midiToName, midiToSolfege, ALL_KEYS };
+if (typeof module !== 'undefined') module.exports = { detectKey, recommendKey, midiToName, midiToSolfege, ALL_KEYS, D5_MIDI };
