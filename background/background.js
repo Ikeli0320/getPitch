@@ -6,6 +6,7 @@ const DEFAULT_STATE = {
   detectedKey:    null,
   maxNote:        null,
   maxNoteSolfege: null,
+  bpm:            null,
   recommendedKey: null,
   elapsedMs:      0,
   error:          null,

@@ -1,22 +1,29 @@
 // content/content.js
 
-const KEY_LOCK_MS    = 15000;
-const TICK_MS        = 200;
-const NOISE_FLOOR_DB = -55;
-const FREQ_MIN_HZ    = 130;  // ~C3 (low singing)
-const FREQ_MAX_HZ    = 1175; // ~D6 (high singing, a bit above D5 to catch harmonics)
+const KEY_LOCK_MS       = 15000;
+const TICK_MS           = 200;
+const NOISE_FLOOR_DB    = -55;
+const FREQ_MIN_HZ       = 130;
+const FREQ_MAX_HZ       = 1175;
+const ONSET_TICK_MS     = 50;
+const ONSET_HISTORY_MAX = 400; // 20 seconds of onset data
 
 let audioCtx     = null;
 let analyserNode = null;
 let audioSource  = null;
 let tickTimer    = null;
+let onsetTimer   = null;
 
-let chromaSum   = new Float32Array(12);
-let frameCount  = 0;
-let maxMidi     = null;
-let detectedKey = null;
-let keyLocked   = false;
-let startTime   = null;
+let chromaSum    = new Float32Array(12);
+let frameCount   = 0;
+let maxMidi      = null;
+let detectedKey  = null;
+let keyLocked    = false;
+let startTime    = null;
+
+// BPM detection state
+let onsetHistory    = [];
+let prevOnsetData   = null;
 
 // ── Message listener ───────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg) => {
@@ -33,12 +40,14 @@ async function startAnalysis() {
   }
 
   // Reset state
-  chromaSum   = new Float32Array(12);
-  frameCount  = 0;
-  maxMidi     = null;
-  detectedKey = null;
-  keyLocked   = false;
-  startTime   = Date.now();
+  chromaSum    = new Float32Array(12);
+  frameCount   = 0;
+  maxMidi      = null;
+  detectedKey  = null;
+  keyLocked    = false;
+  startTime    = Date.now();
+  onsetHistory = [];
+  prevOnsetData = null;
 
   try {
     if (!audioCtx) {
@@ -61,11 +70,14 @@ async function startAnalysis() {
 
   if (tickTimer) clearInterval(tickTimer);
   tickTimer = setInterval(_tick, TICK_MS);
+  if (onsetTimer) clearInterval(onsetTimer);
+  onsetTimer = setInterval(_onsetTick, ONSET_TICK_MS);
   _send({ isAnalyzing: true, keyLocked: false, error: null });
 }
 
 function stopAnalysis() {
-  if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+  if (tickTimer)  { clearInterval(tickTimer);  tickTimer  = null; }
+  if (onsetTimer) { clearInterval(onsetTimer); onsetTimer = null; }
   _send({ isAnalyzing: false });
 }
 
@@ -107,6 +119,7 @@ function _tick() {
     maxNote:        maxMidi !== null ? midiToName(maxMidi) : null,
     maxNoteSolfege: maxMidi !== null ? midiToSolfege(maxMidi) : null,
     recommendedKey: recommended,
+    bpm:            _estimateBPM(),
     error:          null,
   });
 }
@@ -128,6 +141,51 @@ function _findMaxNote(freqData) {
     if (best === null || midi > best) best = midi;
   }
   return best;
+}
+
+// ── BPM (onset detection) ──────────────────────────────────────────────────
+function _onsetTick() {
+  if (!analyserNode) return;
+  const freqData = new Float32Array(analyserNode.frequencyBinCount);
+  analyserNode.getFloatFrequencyData(freqData);
+
+  if (prevOnsetData) {
+    // Spectral flux: sum positive differences across all bins
+    let onset = 0;
+    for (let i = 0; i < freqData.length; i++) {
+      const diff = freqData[i] - prevOnsetData[i];
+      if (diff > 0) onset += diff;
+    }
+    onsetHistory.push(onset);
+    if (onsetHistory.length > ONSET_HISTORY_MAX) onsetHistory.shift();
+  }
+  prevOnsetData = freqData;
+}
+
+function _estimateBPM() {
+  const n = onsetHistory.length;
+  if (n < 100) return null; // Need ~5 seconds of data
+
+  const ticksPerSec  = 1000 / ONSET_TICK_MS; // 20
+  const minPeriod    = Math.round(ticksPerSec * 60 / 200); // fastest: 200 BPM
+  const maxPeriod    = Math.round(ticksPerSec * 60 / 50);  // slowest: 50 BPM
+
+  // Remove DC offset
+  const mean = onsetHistory.reduce((a, b) => a + b, 0) / n;
+  const norm = onsetHistory.map(v => v - mean);
+
+  let bestPeriod = null, bestCorr = -Infinity;
+  for (let p = minPeriod; p <= maxPeriod; p++) {
+    let corr = 0;
+    const len = n - p;
+    for (let i = 0; i < len; i++) corr += norm[i] * norm[i + p];
+    corr /= len;
+    if (corr > bestCorr) { bestCorr = corr; bestPeriod = p; }
+  }
+
+  if (!bestPeriod) return null;
+  const bpm = Math.round((ticksPerSec * 60) / bestPeriod);
+  return (bpm >= 50 && bpm <= 200) ? bpm : null;
 }
 
 function _send(data) {
