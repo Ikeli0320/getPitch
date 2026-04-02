@@ -5,6 +5,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.19] — 2026-04-03
+
+### Fixed
+- `content/content.js`: `_estimateBPM()` now returns `null` when `bestCorr ≤ 0`
+  — prevents reporting a spurious BPM (e.g. 171) on sustained chords or
+  audio with no detectable periodic beats, where all autocorrelation values
+  are exactly zero
+
+### Changed
+- `content/content.js`: extract `_setupAudioGraph(video)` helper from
+  `startAnalysis()` — brings `startAnalysis` from ~56 lines to ~26 lines;
+  audio context lifecycle (close/recreate/resume) and source wiring are now
+  clearly isolated in one place
+- `content/content.js`: extract `_updateMaxNote(freqData)` helper from
+  `_tick()` — brings `_tick` from ~63 lines to 25 lines; note confirmation
+  window logic (rolling NOTE_WINDOW, NOTE_MIN_HITS) lives in its own function
+- `content/content.js`: `_resetDetectionState()` uses `chromaSum.fill(0)`
+  instead of `new Float32Array(12)` — avoids per-reset heap allocation
+- `store-listing.md`: update version references to 1.0.19
+
+---
+
 ## [1.0.18] — 2026-04-03
 
 ### Fixed

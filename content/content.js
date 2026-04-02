@@ -61,7 +61,7 @@ let _noteWindow     = [];
 // Centralised reset used by both startAnalysis() and yt-navigate-finish.
 // Callers that need startTime set to Date.now() must do so after this call.
 function _resetDetectionState() {
-  chromaSum     = new Float32Array(12);
+  chromaSum.fill(0); // reuse existing buffer — avoids per-reset allocation
   frameCount    = 0;
   maxMidi       = null;
   detectedKey   = null;
@@ -80,6 +80,36 @@ chrome.runtime.onMessage.addListener((msg) => {
 });
 
 // ── Public API ─────────────────────────────────────────────────────────────
+// Initialises (or reuses) AudioContext + AnalyserNode + MediaElementSource for video.
+// Returns null on success, or an error string if setup fails.
+async function _setupAudioGraph(video) {
+  // If context was closed (e.g. browser memory pressure), recreate everything.
+  // A closed AudioContext cannot be resumed — only a new one works.
+  if (audioCtx && audioCtx.state === 'closed') {
+    audioCtx = null; audioSource = null; analyserNode = null;
+    _freqBuf = null; _onsetBuf = null; // buffers belong to the old analyser's bin count
+  }
+  if (!audioCtx) audioCtx = new AudioContext();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+  // Guard against stale audioSource pointing to a different video element
+  // (e.g. extension loaded mid-video, or missed yt-navigate-finish event).
+  if (audioSource && audioSource?.mediaElement !== video) audioSource = null;
+
+  if (!audioSource) {
+    analyserNode = audioCtx.createAnalyser();
+    analyserNode.fftSize = FFT_SIZE;
+    analyserNode.smoothingTimeConstant = SMOOTHING_CONSTANT;
+    audioSource = audioCtx.createMediaElementSource(video);
+    audioSource.connect(analyserNode);
+    analyserNode.connect(audioCtx.destination); // Keep audio audible
+    // Allocate reusable buffers sized to this analyser's bin count
+    _freqBuf  = new Float32Array(analyserNode.frequencyBinCount);
+    _onsetBuf = new Float32Array(analyserNode.frequencyBinCount);
+  }
+  return null; // success
+}
+
 async function startAnalysis() {
   // Guard: chromagram.js and key-detector.js must be loaded before this script.
   // If they fail to inject (permissions error, MV3 race), report clearly instead
@@ -98,52 +128,18 @@ async function startAnalysis() {
     return;
   }
 
-  // Reset all detection state before starting fresh
   _resetDetectionState();
   startTime = Date.now();
 
   try {
-    // If context was closed (e.g. browser memory pressure), recreate it.
-    // A closed AudioContext cannot be resumed — only a new one works.
-    if (audioCtx && audioCtx.state === 'closed') {
-      audioCtx    = null;
-      audioSource = null;   // source belongs to the dead context
-      analyserNode = null;  // analyser belongs to the dead context too;
-                            // must null it so the !audioSource block below recreates
-                            // both together — otherwise audioSource.connect(analyserNode)
-                            // would wire the new source into a dead-context analyser
-                            // that silently returns -Infinity for all frequency bins.
-      _freqBuf    = null;   // buffers belong to the old analyser's bin count
-      _onsetBuf   = null;
-    }
-    if (!audioCtx) {
-      audioCtx = new AudioContext();
-    }
-    if (audioCtx.state === 'suspended') await audioCtx.resume();
-
-    // Guard against stale audioSource pointing to a different video element
-    // (e.g. extension loaded mid-video, or missed yt-navigate-finish event).
-    if (audioSource && audioSource?.mediaElement !== video) {
-      audioSource = null;
-    }
-    if (!audioSource) {
-      analyserNode = audioCtx.createAnalyser();
-      analyserNode.fftSize = FFT_SIZE;
-      analyserNode.smoothingTimeConstant = SMOOTHING_CONSTANT;
-      audioSource = audioCtx.createMediaElementSource(video);
-      audioSource.connect(analyserNode);
-      analyserNode.connect(audioCtx.destination); // Keep audio audible
-      // Allocate reusable buffers sized to this analyser's bin count
-      _freqBuf  = new Float32Array(analyserNode.frequencyBinCount);
-      _onsetBuf = new Float32Array(analyserNode.frequencyBinCount);
-    }
+    await _setupAudioGraph(video);
   } catch (e) {
     _send({ isAnalyzing: false, error: '音訊初始化失敗: ' + e.message });
     return;
   }
 
-  if (tickTimer) clearInterval(tickTimer);
-  tickTimer = setInterval(_tick, TICK_MS);
+  if (tickTimer)  clearInterval(tickTimer);
+  tickTimer  = setInterval(_tick, TICK_MS);
   if (onsetTimer) clearInterval(onsetTimer);
   onsetTimer = setInterval(_onsetTick, ONSET_TICK_MS);
   _send({ isAnalyzing: true, keyLocked: false, error: null });
@@ -155,6 +151,23 @@ function stopAnalysis(error = null) {
   if (tickTimer)  { clearInterval(tickTimer);  tickTimer  = null; }
   if (onsetTimer) { clearInterval(onsetTimer); onsetTimer = null; }
   _send(error ? { isAnalyzing: false, error } : { isAnalyzing: false });
+}
+
+// Updates maxMidi using a rolling confirmation window (≥NOTE_MIN_HITS of last NOTE_WINDOW frames).
+// Prevents single-frame transient spikes from instruments being accepted as the highest note.
+function _updateMaxNote(freqData) {
+  const noteMidi = _findMaxNote(freqData);
+  _noteWindow.push(noteMidi);
+  if (_noteWindow.length > NOTE_WINDOW) _noteWindow.shift();
+  const noteCounts = {};
+  for (const n of _noteWindow) { if (n !== null) noteCounts[n] = (noteCounts[n] || 0) + 1; }
+  const confirmed = Object.keys(noteCounts)
+    .filter(n => noteCounts[n] >= NOTE_MIN_HITS)
+    .map(Number);
+  if (confirmed.length > 0) {
+    const top = Math.max(...confirmed);
+    if (maxMidi === null || top > maxMidi) maxMidi = top;
+  }
 }
 
 // ── Tick ───────────────────────────────────────────────────────────────────
@@ -171,19 +184,8 @@ function _tick() {
   accumulateChroma(chromaSum, frame);
   frameCount++;
 
-  // Track highest note — require ≥2 of last 3 frames to agree before accepting
-  const noteMidi = _findMaxNote(_freqBuf);
-  _noteWindow.push(noteMidi);
-  if (_noteWindow.length > NOTE_WINDOW) _noteWindow.shift();
-  const noteCounts = {};
-  for (const n of _noteWindow) { if (n !== null) noteCounts[n] = (noteCounts[n] || 0) + 1; }
-  const confirmed = Object.keys(noteCounts)
-    .filter(n => noteCounts[n] >= NOTE_MIN_HITS)
-    .map(Number);
-  if (confirmed.length > 0) {
-    const top = Math.max(...confirmed);
-    if (maxMidi === null || top > maxMidi) maxMidi = top;
-  }
+  // Track highest note (confirmation window handled in _updateMaxNote)
+  _updateMaxNote(_freqBuf);
 
   const elapsed = Date.now() - startTime;
   const chromaEnergy = chromaSum.reduce((a, b) => a + b, 0);
@@ -292,7 +294,9 @@ function _estimateBPM() {
     if (corr > bestCorr) { bestCorr = corr; bestPeriod = p; }
   }
 
-  if (!bestPeriod) return null;
+  // No periodic signal found: bestCorr ≤ 0 means all norm[] values were identical
+  // (e.g. sustained chord with no detectable beats) — return null rather than a spurious BPM.
+  if (!bestPeriod || bestCorr <= 0) return null;
   const bpm = Math.round((ticksPerSec * 60) / bestPeriod);
   if (bpm < BPM_MIN || bpm > BPM_MAX) return null;
 
