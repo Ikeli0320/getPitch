@@ -20,36 +20,54 @@
   </div>
 
   <section id="results">
+
+    <!-- 原曲調號：value + staff side by side -->
     <div class="card">
       <label>原曲調號</label>
-      <div id="detected-key" class="value">—</div>
-      <div id="key-sig-staff"></div>
-      <div id="key-progress"></div>
-    </div>
-
-    <div class="card">
-      <label>最高音</label>
-      <div class="value-row">
-        <span id="max-note" class="value">—</span>
-        <span id="max-note-solfege" class="solfege"></span>
+      <div class="key-row">
+        <div>
+          <div id="detected-key" class="value">—</div>
+          <div id="key-progress"></div>
+        </div>
+        <div id="key-sig-staff"></div>
       </div>
-      <div class="status" id="note-status"></div>
     </div>
 
-    <div class="card">
-      <label>拍速</label>
-      <div class="value-row">
-        <span id="bpm-value" class="value">—</span>
-        <span id="bpm-unit" class="solfege"></span>
+    <!-- 最高音 + 拍速：two mini cards in one row -->
+    <div class="twin-row">
+      <div class="card mini">
+        <label>最高音</label>
+        <div id="max-note" class="value">—</div>
+        <div id="max-note-solfege" class="solfege"></div>
+        <div class="status" id="note-status"></div>
       </div>
-      <div class="status" id="bpm-status"></div>
+      <div class="card mini">
+        <label>拍速</label>
+        <div class="value-row">
+          <span id="bpm-value" class="value">—</span>
+          <span id="bpm-unit" class="solfege"></span>
+        </div>
+        <div class="status" id="bpm-status"></div>
+      </div>
     </div>
 
+    <!-- 推薦調號：value + staff side by side + slider -->
     <div class="card highlight">
       <label>推薦調號（適合演唱）</label>
-      <div id="recommended-key" class="value">—</div>
-      <div class="status" id="shift-info"></div>
+      <div class="key-row">
+        <div>
+          <div id="recommended-key" class="value">—</div>
+          <div class="status" id="shift-info"></div>
+        </div>
+        <div id="rec-sig-staff"></div>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">微調</span>
+        <input type="range" id="transpose-slider" min="-3" max="3" step="1" value="0">
+        <span id="transpose-value" class="slider-val">0</span>
+      </div>
     </div>
+
   </section>
 
   <section id="detail-section" class="hidden">

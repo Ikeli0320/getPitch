@@ -9,8 +9,28 @@ const ALLOWED_KEY_NAMES = [
   'D 小調','G 小調','C 小調',
 ];
 
-let _isAnalyzing = false;
-let _showDetail  = false;
+let _isAnalyzing     = false;
+let _showDetail      = false;
+let _transposeOffset = 0;
+let _lastState       = null;
+
+// Allowed keys for transpose adjustment (same list as key-detector.js)
+const _ALLOWED_KEYS = [
+  { root:0,  mode:'major', name:'C 大調',  acc:0  },
+  { root:7,  mode:'major', name:'G 大調',  acc:1  },
+  { root:2,  mode:'major', name:'D 大調',  acc:2  },
+  { root:9,  mode:'major', name:'A 大調',  acc:3  },
+  { root:5,  mode:'major', name:'F 大調',  acc:-1 },
+  { root:10, mode:'major', name:'Bb 大調', acc:-2 },
+  { root:3,  mode:'major', name:'Eb 大調', acc:-3 },
+  { root:9,  mode:'minor', name:'A 小調',  acc:0  },
+  { root:4,  mode:'minor', name:'E 小調',  acc:1  },
+  { root:11, mode:'minor', name:'B 小調',  acc:2  },
+  { root:6,  mode:'minor', name:'F# 小調', acc:3  },
+  { root:2,  mode:'minor', name:'D 小調',  acc:-1 },
+  { root:7,  mode:'minor', name:'G 小調',  acc:-2 },
+  { root:0,  mode:'minor', name:'C 小調',  acc:-3 },
+];
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Populate allowed-keys chips once
@@ -39,7 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load latest state from background
   const state = await chrome.runtime.sendMessage({ action: 'getState' });
-  if (state) _updateUI(state);
+  if (state) { _lastState = state; _updateUI(state); }
 
   // Button: start / stop
   document.getElementById('start-btn').addEventListener('click', () => {
@@ -60,10 +80,45 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Live updates via storage
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'session' && changes.getPitchState) {
-      _updateUI(changes.getPitchState.newValue);
+      _lastState = changes.getPitchState.newValue;
+      _updateUI(_lastState);
     }
   });
+
+  // Transpose slider
+  document.getElementById('transpose-slider').addEventListener('input', (e) => {
+    _transposeOffset = parseInt(e.target.value, 10);
+    const label = _transposeOffset === 0 ? '0'
+      : (_transposeOffset > 0 ? `+${_transposeOffset}` : `${_transposeOffset}`);
+    document.getElementById('transpose-value').textContent = label;
+    if (_lastState) _updateUI(_lastState);
+  });
 });
+
+// ── Transpose adjustment ───────────────────────────────────────────────────
+// Applies _transposeOffset semitones to a recommended key, staying within allowed list.
+function _getAdjustedKey(baseKey) {
+  if (!baseKey || _transposeOffset === 0) return baseKey;
+  const newRoot = ((baseKey.root + _transposeOffset) % 12 + 12) % 12;
+  const pool = _ALLOWED_KEYS.filter(k => k.mode === baseKey.mode);
+
+  const exact = pool.find(k => k.root === newRoot);
+  if (exact) return { ...exact, semitoneShift: (baseKey.semitoneShift || 0) + _transposeOffset };
+
+  // Find nearest in allowed pool
+  let best = null, bestDist = Infinity, bestIsUp = false;
+  for (const k of pool) {
+    const up   = ((k.root - newRoot) + 12) % 12;
+    const down = ((newRoot - k.root) + 12) % 12;
+    const dist = Math.min(up, down);
+    const isUp = up <= down;
+    if (dist < bestDist || (dist === bestDist && isUp && !bestIsUp)) {
+      bestDist = dist; best = k; bestIsUp = isUp;
+    }
+  }
+  const extra = bestIsUp ? bestDist : -bestDist;
+  return { ...best, semitoneShift: (baseKey.semitoneShift || 0) + _transposeOffset + extra };
+}
 
 // ── Key signature staff SVG ────────────────────────────────────────────────
 // Staff: 5 lines, spacing 8px, top line y=8. Positions use treble clef layout.
@@ -131,7 +186,7 @@ function _updateUI(state) {
   // Max note
   document.getElementById('max-note').textContent = state.maxNote || '—';
   document.getElementById('max-note-solfege').textContent =
-    state.maxNoteSolfege ? `（${state.maxNoteSolfege}）` : '';
+    state.maxNoteSolfege ? state.maxNoteSolfege : '';
   document.getElementById('note-status').textContent = _isAnalyzing ? '持續追蹤中...' : '';
 
   // BPM
@@ -148,23 +203,22 @@ function _updateUI(state) {
     bpmStat.textContent = _isAnalyzing ? '收集中（需約 5 秒）...' : '';
   }
 
-  // Recommended key
-  const recEl   = document.getElementById('recommended-key');
-  const shiftEl = document.getElementById('shift-info');
-  if (state.recommendedKey) {
-    recEl.textContent = state.recommendedKey.name;
-    const s = state.recommendedKey.semitoneShift;
+  // Recommended key (with transpose offset applied)
+  const recEl    = document.getElementById('recommended-key');
+  const shiftEl  = document.getElementById('shift-info');
+  const recStaff = document.getElementById('rec-sig-staff');
+  const adjKey   = _getAdjustedKey(state.recommendedKey);
+  if (adjKey) {
+    recEl.textContent  = adjKey.name;
+    recStaff.innerHTML = _renderKeySigSVG(adjKey.acc);
+    const s = adjKey.semitoneShift;
     const label = s === 0
       ? '無需調整'
       : (s > 0 ? `升 ${s} 個半音` : `降 ${Math.abs(s)} 個半音`);
-    const accInfo = state.recommendedKey.acc === 0
-      ? '（無升降記號）'
-      : state.recommendedKey.acc > 0
-        ? `（${state.recommendedKey.acc}#）`
-        : `（${Math.abs(state.recommendedKey.acc)}b）`;
-    shiftEl.textContent = `${label} ${accInfo}`;
+    shiftEl.textContent = label;
   } else {
-    recEl.textContent   = '—';
+    recEl.textContent  = '—';
+    recStaff.innerHTML = '';
     shiftEl.textContent = '';
   }
 

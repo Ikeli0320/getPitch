@@ -60,11 +60,57 @@ header h1 { font-size: 18px; font-weight: 600; color: #fff; }
   margin: 4px 0 2px;
 }
 .card .status { font-size: 11px; color: #555; }
-#key-sig-staff { margin: 6px 0 2px; min-height: 50px; }
-#key-sig-staff svg { display: block; }
-.value-row { display: flex; align-items: baseline; gap: 8px; margin: 4px 0 2px; }
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.slider-label { font-size: 11px; color: #666; white-space: nowrap; }
+.slider-val {
+  font-size: 12px;
+  color: #4a90e2;
+  min-width: 28px;
+  text-align: right;
+  font-weight: 600;
+}
+input[type=range] {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 3px;
+  background: #2d2d44;
+  border-radius: 2px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4a90e2;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb:hover { background: #357abd; }
+
+/* key + staff side by side */
+.key-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 0 2px;
+}
+.key-row .value { margin: 0; }
+#key-sig-staff svg, #rec-sig-staff svg { display: block; }
+
+/* twin mini-cards in one row */
+.twin-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.card.mini { flex: 1; padding: 8px 10px; margin-bottom: 0; }
+.card.mini .value { font-size: 20px; }
+
+.value-row { display: flex; align-items: baseline; gap: 6px; }
 .value-row .value { margin: 0; }
-.solfege { font-size: 14px; color: #888; font-weight: 400; }
+.solfege { font-size: 12px; color: #888; font-weight: 400; }
 .card.highlight { border: 1px solid #4a90e2; }
 .card.highlight .value { color: #4a90e2; }
 
