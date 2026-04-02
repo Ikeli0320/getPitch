@@ -87,6 +87,7 @@ input[type=range]:focus-visible {
   outline: 2px solid #4a90e2;
   outline-offset: 3px;
   border-radius: 2px;
+  background: #3a3a54; /* slightly lighter track on focus — aids low-vision users */
 }
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;

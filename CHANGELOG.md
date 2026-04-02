@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.18] — 2026-04-03
+
+### Fixed
+- `content/content.js`: **crash guard** — `_tick()` now checks `!_freqBuf` before
+  calling `analyserNode.getFloatFrequencyData(_freqBuf)`. Without this guard, a
+  timer firing between `analyserNode` creation and buffer allocation (e.g. if
+  `startAnalysis` throws mid-way) would pass `null` to the Web Audio API and
+  throw a `TypeError`, silently stopping all analysis with no user-visible error.
+
+### Changed
+- `popup/popup.css`: slider track lightens to `#3a3a54` on `:focus-visible` —
+  provides a secondary focus cue for low-vision users beyond the thumb outline
+
+---
+
 ## [1.0.17] — 2026-04-03
 
 ### Fixed

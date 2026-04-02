@@ -159,7 +159,7 @@ function stopAnalysis(error = null) {
 
 // ── Tick ───────────────────────────────────────────────────────────────────
 function _tick() {
-  if (!audioCtx || !analyserNode) return;
+  if (!audioCtx || !analyserNode || !_freqBuf) return;
   // Skip processing while video is paused — accumulating chroma from silence
   // degrades key detection accuracy and wastes CPU.
   if (audioSource && audioSource.mediaElement && audioSource.mediaElement.paused) return;
