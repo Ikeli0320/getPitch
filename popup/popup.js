@@ -86,10 +86,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const action = willStop ? 'stopAnalysis' : 'startAnalysis';
     // Optimistic UI: flip button before the async round-trip
     btn.textContent = willStop ? '▶ 開始分析' : '⏹ 停止分析';
+    btn.setAttribute('aria-label', willStop ? '開始分析' : '停止分析');
     btn.classList.toggle('stop', !willStop);
     chrome.runtime.sendMessage({ action }).catch(() => {
       // Revert if message failed
       btn.textContent = willStop ? '⏹ 停止分析' : '▶ 開始分析';
+      btn.setAttribute('aria-label', willStop ? '停止分析' : '開始分析');
       btn.classList.toggle('stop', willStop);
     });
   });
