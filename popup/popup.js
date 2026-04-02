@@ -78,7 +78,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Restore persisted transpose offset (survives popup closes)
   chrome.storage.local.get(['transposeOffset'], (r) => {
     if (typeof r.transposeOffset === 'number') {
-      _transposeOffset = r.transposeOffset;
+      // Clamp in case the stored value is outside the current allowed range
+      // (e.g., saved with a previous version that had a wider range)
+      _transposeOffset = Math.max(-3, Math.min(3, r.transposeOffset));
       const slider = document.getElementById('transpose-slider');
       slider.value = _transposeOffset;
       const label = _transposeOffset === 0 ? '0'
@@ -165,7 +167,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Transpose slider
   document.getElementById('transpose-slider').addEventListener('input', (e) => {
-    _transposeOffset = parseInt(e.target.value, 10);
+    const parsed = parseInt(e.target.value, 10);
+    // Guard: clamp to the slider's allowed range in case of corrupted value
+    _transposeOffset = isNaN(parsed) ? 0 : Math.max(-3, Math.min(3, parsed));
     const label = _transposeOffset === 0 ? '0'
       : (_transposeOffset > 0 ? `+${_transposeOffset}` : `${_transposeOffset}`);
     document.getElementById('transpose-value').textContent = label;
@@ -227,7 +231,9 @@ function _renderKeySigSVG(acc) {
   const count   = Math.min(7, Math.abs(acc));
   const isSharp = acc > 0;
   const yArr    = isSharp ? _SHARP_Y.slice(0, count) : _FLAT_Y.slice(0, count);
-  const sym     = isSharp ? '♯' : '♭';
+  // Explicit whitelist: only these two Unicode characters are valid accidentals.
+  // Prevents XSS if acc-derived logic ever changes or state is unexpectedly corrupted.
+  const sym     = isSharp ? '\u266F' : '\u266D'; // ♯ or ♭
 
   const LINES = [8, 16, 24, 32, 40];
   const H = 50, ACC_W = 12, GAP = 2, PAD = 4;
@@ -299,6 +305,7 @@ function _updateUI(state) {
     const pct = Math.min(100, Math.round(((state.elapsedMs || 0) / KEY_LOCK_MS) * 100));
     progInner.style.width = pct + '%'; // update width only — no DOM reconstruction
     progBar.setAttribute('aria-valuenow', pct);
+    progBar.setAttribute('aria-label', `調號鎖定進度 ${pct}%`);
     progBar.classList.remove('hidden');
     lockLabel.classList.add('hidden');
   } else {

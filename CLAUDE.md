@@ -56,14 +56,16 @@ In `content/content.js`:
 | Constant | Default | Effect |
 |---|---|---|
 | `KEY_LOCK_MS` | 15000 | ms of audio before key locks |
-| `NOISE_FLOOR_DB` | -55 | dB threshold for note detection |
-| `FREQ_MIN_HZ` | 130 | Lower bound for note tracking (~C3) |
-| `FREQ_MAX_HZ` | 1175 | Upper bound for note tracking (~D6) |
+| `NOISE_FLOOR_DB` | −55 | dB threshold for note detection |
+| `FREQ_MIN_HZ` | 130 | Lower bound for **note tracking** (~C3; D3 is practical floor due to FFT bin width) |
+| `FREQ_MAX_HZ` | 1175 | Upper bound for **note tracking** (~D6). Note: chromagram.js uses a tighter 1047 Hz (C6) for key detection only |
 | `ONSET_TICK_MS` | 50 | BPM onset sampling interval (ms) |
 | `ONSET_HISTORY_MAX` | 400 | Max onset samples (~20 s) |
 | `NOTE_WINDOW` | 3 | Rolling frame window for note confirmation |
 | `NOTE_MIN_HITS` | 2 | Frames in window that must agree on a note |
 | `SILENT_TIMEOUT_MS` | 20000 | ms of near-zero chroma before "no audio" error |
+
+BPM onset detection uses 50–500 Hz (hardcoded in `_onsetTick`; captures kick drum + bass transients).
 
 ## Music Theory
 

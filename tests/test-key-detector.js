@@ -139,5 +139,18 @@ const recE5 = recommendKey(cMajorKey, 76); // E5 above D5
 assert(recE5 !== null, 'C major + E5 (76) finds a recommendation');
 assert(recE5.semitoneShift < 0, `C major + E5 → downward shift (got ${recE5 && recE5.semitoneShift})`);
 
+// midiToSolfege — 倍低音 branch (octave ≤ 2)
+console.log('\nTest: midiToSolfege — 倍低音 branch');
+assert(midiToSolfege(36) === '倍低音Do',
+  `midiToSolfege(36)='倍低音Do' (octave=2, got ${midiToSolfege(36)})`);
+assert(midiToSolfege(24) === '倍低音Do',
+  `midiToSolfege(24)='倍低音Do' (octave=1, got ${midiToSolfege(24)})`);
+
+// recommendKey — out-of-range mode after object spread (hardened guard)
+console.log('\nTest: recommendKey — mode guard covers spread objects');
+const spoofedKey = { ...{ root: 0, mode: 'major', name: 'C 大調', acc: 0 }, mode: 'mixolydian' };
+assert(recommendKey(spoofedKey, 74) === null,
+  'recommendKey rejects mode:mixolydian (not major/minor)');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

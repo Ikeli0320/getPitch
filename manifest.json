@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "getPitch - YouTube Key Detector",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Detect the key, highest note, and recommended singing key of any YouTube song in real-time.",
   "minimum_chrome_version": "116",
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self';"
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data:;"
   },
   "permissions": ["activeTab", "storage", "tabs"],
   "host_permissions": ["*://*.youtube.com/*"],
@@ -34,7 +34,7 @@
         "default": "Alt+P",
         "mac": "Command+Shift+P"
       },
-      "description": "開啟 getPitch 分析面板"
+      "description": "Open getPitch analysis panel"
     }
   },
   "content_scripts": [
