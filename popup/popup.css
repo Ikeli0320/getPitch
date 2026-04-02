@@ -50,7 +50,7 @@ header h1 { font-size: 18px; font-weight: 600; color: #fff; }
 }
 .card .card-label {
   font-size: 11px;
-  color: #777;
+  color: #888; /* was #777 — boosted for WCAG AA 4.5:1 on #16213e */
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -60,14 +60,14 @@ header h1 { font-size: 18px; font-weight: 600; color: #fff; }
   color: #fff;
   margin: 4px 0 2px;
 }
-.card .status { font-size: 11px; color: #555; }
+.card .status { font-size: 11px; color: #888; } /* was #555 — WCAG AA */
 .slider-row {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 8px;
 }
-.slider-label { font-size: 11px; color: #666; white-space: nowrap; }
+.slider-label { font-size: 11px; color: #888; white-space: nowrap; } /* was #666 — WCAG AA */
 .slider-val {
   font-size: 12px;
   color: #4a90e2;
@@ -142,7 +142,7 @@ hr { border: none; border-top: 1px solid #2a2a3e; margin: 8px 0; }
   padding: 4px 0;
   font-size: 12px;
 }
-.detail-row > span:first-child { color: #555; min-width: 70px; }
+.detail-row > span:first-child { color: #888; min-width: 70px; } /* was #555 — WCAG AA */
 #d-allowed {
   display: flex;
   flex-wrap: wrap;
@@ -179,7 +179,7 @@ button:focus-visible {
 #start-btn { flex: 1; background: #4a90e2; color: #fff; }
 #start-btn:hover { background: #357abd; }
 #start-btn.stop { background: #e24a4a; }
-#start-btn:disabled { background: #333; color: #555; cursor: default; }
+#start-btn:disabled { background: #333; color: #aaa; cursor: default; } /* #aaa gives 5:1 on #333 */
 #detail-btn { background: #2d2d44; color: #aaa; }
 #detail-btn:hover { background: #3a3a54; }
 
