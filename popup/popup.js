@@ -108,6 +108,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const detailSection = document.getElementById('detail-section');
     detailSection.classList.toggle('hidden', !_showDetail);
     detailSection.setAttribute('aria-hidden', String(!_showDetail));
+    // inert prevents keyboard focus from reaching hidden content even if CSS is overridden
+    detailSection.toggleAttribute('inert', !_showDetail);
     const detailBtn = document.getElementById('detail-btn');
     detailBtn.textContent = _showDetail ? '簡略 ▲' : '詳細 ▼';
     detailBtn.setAttribute('aria-expanded', String(_showDetail));
@@ -202,7 +204,9 @@ const _SHARP_Y = [8, 20, 4, 16, 28, 12, 24];
 const _FLAT_Y  = [24, 12, 28, 16, 32, 20, 36];
 
 function _renderKeySigSVG(acc) {
-  const count   = Math.abs(acc);
+  // Clamp to valid range — standard key signatures have at most 7 accidentals.
+  // Guards against corrupted state writing an out-of-range value.
+  const count   = Math.min(7, Math.abs(acc));
   const isSharp = acc > 0;
   const yArr    = isSharp ? _SHARP_Y.slice(0, count) : _FLAT_Y.slice(0, count);
   const sym     = isSharp ? '♯' : '♭';
@@ -252,7 +256,8 @@ function _updateUI(state) {
   const confWarn   = document.getElementById('key-conf-warn');
   if (state.keyLocked && state.detectedKey) {
     keyEl.textContent = state.detectedKey.name || '—';
-    const ka = typeof state.detectedKey.acc === 'number' ? state.detectedKey.acc : null;
+    // Defensive: guard against null/undefined detectedKey.acc (e.g. schema mismatch after update)
+    const ka = (state.detectedKey && typeof state.detectedKey.acc === 'number') ? state.detectedKey.acc : null;
     if (ka !== _lastKeyAcc) {
       staffEl.setAttribute('aria-label', _keySigAriaLabel(ka));
       staffEl.innerHTML = ka !== null ? _renderKeySigSVG(ka) : '';

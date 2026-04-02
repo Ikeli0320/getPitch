@@ -29,6 +29,7 @@ header h1 { font-size: 18px; font-weight: 600; color: #fff; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 #msg-bar {

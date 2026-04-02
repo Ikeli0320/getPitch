@@ -34,7 +34,11 @@ let activeTabId = null;
 // Restore last-known state after service worker restarts (MV3 workers are evicted after ~30s idle).
 // Without this, a freshly-woken worker returns DEFAULT_STATE to the popup even though
 // chrome.storage.session still holds the last analysis results.
-chrome.storage.session.get('getPitchState').then(result => {
+// Race a 500ms timeout so a stalled storage read never blocks the service worker startup.
+Promise.race([
+  chrome.storage.session.get('getPitchState'),
+  new Promise(resolve => setTimeout(() => resolve({}), 500)),
+]).then(result => {
   if (result.getPitchState && typeof result.getPitchState === 'object') {
     // Merge with DEFAULT_STATE so missing keys from older versions are filled in
     state = { ...DEFAULT_STATE, ...result.getPitchState };

@@ -43,6 +43,13 @@ chrome.runtime.onMessage.addListener((msg) => {
 
 // ── Public API ─────────────────────────────────────────────────────────────
 async function startAnalysis() {
+  // Guard: chromagram.js and key-detector.js must be loaded before this script.
+  // If they fail to inject (permissions error, MV3 race), report clearly instead
+  // of throwing a cryptic ReferenceError mid-analysis.
+  if (typeof buildChromagram !== 'function' || typeof detectKey !== 'function') {
+    _send({ isAnalyzing: false, error: '擴充功能載入不完整，請重新整理頁面' });
+    return;
+  }
   const video = document.querySelector('video.html5-main-video') || document.querySelector('video');
   if (!video || video.readyState < 2) {
     _send({ isAnalyzing: false, error: '找不到影片元素，請確認影片正在播放' });
@@ -228,8 +235,8 @@ function _estimateBPM() {
   if (n < 100) return null; // Need ~5 seconds of data
 
   const ticksPerSec  = 1000 / ONSET_TICK_MS; // 20
-  const minPeriod    = Math.round(ticksPerSec * 60 / 180); // fastest: 180 BPM
-  const maxPeriod    = Math.round(ticksPerSec * 60 / 60);  // slowest: 60 BPM
+  const minPeriod    = Math.round(ticksPerSec * 60 / 180); // period for 180 BPM (fastest)
+  const maxPeriod    = Math.round(ticksPerSec * 60 / 60);  // period for  60 BPM (slowest)
 
   // Remove DC offset
   const mean = onsetHistory.reduce((a, b) => a + b, 0) / n;
@@ -237,8 +244,9 @@ function _estimateBPM() {
 
   let bestPeriod = null, bestCorr = -Infinity;
   for (let p = minPeriod; p <= maxPeriod; p++) {
-    let corr = 0;
     const len = n - p;
+    if (len <= 0) continue; // guard: skip if history too short for this period
+    let corr = 0;
     for (let i = 0; i < len; i++) corr += norm[i] * norm[i + p];
     corr /= len;
     if (corr > bestCorr) { bestCorr = corr; bestPeriod = p; }
@@ -257,7 +265,10 @@ function _estimateBPM() {
 
 function _send(data) {
   // sendMessage throws if the receiving end (background) is not available.
-  chrome.runtime.sendMessage({ action: 'updateResults', data }).catch(() => {});
+  chrome.runtime.sendMessage({ action: 'updateResults', data }).catch(e => {
+    // Log to DevTools console for debugging — not visible to users.
+    console.debug('[getPitch] updateResults failed:', e?.message);
+  });
 }
 
 // ── Auto-reset on YouTube SPA navigation ───────────────────────────────────
