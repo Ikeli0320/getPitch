@@ -1,0 +1,13 @@
+{
+  "name": "getpitch",
+  "version": "1.0.8",
+  "description": "YouTube key signature detector Chrome extension",
+  "private": true,
+  "scripts": {
+    "test": "node tests/test-chromagram.js && node tests/test-key-detector.js",
+    "icons": "node scripts/generate-icons.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

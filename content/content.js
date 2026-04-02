@@ -114,10 +114,12 @@ async function startAnalysis() {
   _send({ isAnalyzing: true, keyLocked: false, error: null });
 }
 
-function stopAnalysis() {
+// error is optional — pass a string to include it in the single outgoing message,
+// avoiding a redundant { isAnalyzing: false } send followed by a second error send.
+function stopAnalysis(error = null) {
   if (tickTimer)  { clearInterval(tickTimer);  tickTimer  = null; }
   if (onsetTimer) { clearInterval(onsetTimer); onsetTimer = null; }
-  _send({ isAnalyzing: false });
+  _send(error ? { isAnalyzing: false, error } : { isAnalyzing: false });
 }
 
 // ── Tick ───────────────────────────────────────────────────────────────────
@@ -156,8 +158,7 @@ function _tick() {
   // the video is likely muted, at OS-level silence, or has no audio track.
   // Stop analysis and show a helpful error instead of hanging indefinitely.
   if (!keyLocked && elapsed >= SILENT_TIMEOUT_MS && chromaEnergy <= 0.01) {
-    stopAnalysis();
-    _send({ isAnalyzing: false, error: '未偵測到音訊，請確認影片未靜音且已開始播放' });
+    stopAnalysis('未偵測到音訊，請確認影片未靜音、系統音量已開啟且影片正在播放');
     return;
   }
 

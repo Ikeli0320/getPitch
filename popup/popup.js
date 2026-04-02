@@ -211,9 +211,11 @@ function _getAdjustedKey(baseKey) {
 }
 
 // ── Key signature helpers ──────────────────────────────────────────────────
-// Returns a human-readable aria-label for a key signature staff (e.g. "1 升記號")
+// Returns a human-readable aria-label for a key signature staff (e.g. "1 升記號").
+// null means no key detected yet — distinct from acc=0 (C major, no accidentals).
 function _keySigAriaLabel(acc) {
-  if (acc === null || acc === 0) return '無升降記號';
+  if (acc === null || acc === undefined) return '—';
+  if (acc === 0) return '無升降記號';
   const n = Math.abs(acc);
   return acc > 0 ? `${n} 個升記號` : `${n} 個降記號`;
 }
