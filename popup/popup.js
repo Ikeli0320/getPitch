@@ -1,20 +1,23 @@
 // popup/popup.js
 
+// Must match KEY_LOCK_MS in content/content.js — both files are isolated (no shared imports in MV3)
 const KEY_LOCK_MS            = 15000;
 const MAX_SONG_TITLE_LENGTH  = 60;
 const CONFIDENCE_WARN_THRESHOLD = 40; // ⚠ badge shown below this confidence %
 const TRANSPOSE_MIN          = -3;
 const TRANSPOSE_MAX          = 3;
 
-let _isAnalyzing     = false;
-let _showDetail      = false;
-let _transposeOffset = 0;
-let _lastState       = null;
+let _isAnalyzing       = false;
+let _showDetail        = false;
+let _transposeOffset   = 0;
+let _lastState         = null;
 // SVG cache: avoid re-rendering staff SVGs every tick when the key hasn't changed
-let _lastKeyAcc      = undefined;
-let _lastRecAcc      = undefined;
+let _lastKeyAcc        = undefined;
+let _lastRecAcc        = undefined;
 // Chip cache: populated once in DOMContentLoaded — avoids querySelectorAll every tick
-let _chips           = null;
+let _chips             = null;
+// Debounce timer for storage.local.set on slider input — prevents flooding storage on rapid drag
+let _sliderSaveTimer   = null;
 
 // Allowed keys for transpose adjustment: subset of ALL_KEYS from key-detector.js
 // restricted to |acc| ≤ 3 (max 3 sharps or 3 flats) — practical range for karaoke.
@@ -172,9 +175,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const parsed = parseInt(e.target.value, 10);
     // Guard: clamp to the slider's allowed range in case of corrupted value
     _transposeOffset = isNaN(parsed) ? 0 : Math.max(TRANSPOSE_MIN, Math.min(TRANSPOSE_MAX, parsed));
+    // Re-sync element value in case it was clamped to prevent visual desync
+    if (parseInt(e.target.value, 10) !== _transposeOffset) e.target.value = _transposeOffset;
     _updateTransposeLabel(_transposeOffset, e.target);
-    // Persist across popup closes so the user's preference survives re-opens
-    chrome.storage.local.set({ transposeOffset: _transposeOffset });
+    // Debounce storage writes — rapid slider drag would otherwise flood storage.local
+    clearTimeout(_sliderSaveTimer);
+    _sliderSaveTimer = setTimeout(() => {
+      chrome.storage.local.set({ transposeOffset: _transposeOffset });
+    }, 300);
     if (_lastState) _updateUI(_lastState);
   });
 });

@@ -40,4 +40,5 @@ function accumulateChroma(sum, frame) {
   for (let i = 0; i < 12; i++) sum[i] += frame[i];
 }
 
+// Node.js CommonJS exports — only used by tests/test-chromagram.js, not in browser context
 if (typeof module !== 'undefined') module.exports = { buildChromagram, accumulateChroma, CHROMA_FREQ_MIN_HZ, CHROMA_FREQ_MAX_HZ };

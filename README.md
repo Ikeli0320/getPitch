@@ -100,6 +100,19 @@ Content scripts are injected declaratively (no `scripting` permission). State li
 | `CHROMA_FREQ_MIN_HZ` | 130 | lower bound for key-detection chroma (~C3) |
 | `CHROMA_FREQ_MAX_HZ` | 1 047 | upper bound for key-detection chroma (~C6, tighter than note tracking to reduce harmonic noise) |
 
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| "找不到影片元素" | Extension loaded before video | Refresh the page and try again |
+| "請先播放影片" | Video is paused | Press Play, then click ▶ 開始分析 |
+| "未偵測到音訊" after 20 s | Video muted, system volume off, or audio-only tab | Unmute the video and verify system volume is on |
+| Key stuck at "偵測中..." | Less than 15 s of audio | Wait for the 15-second lock window |
+| BPM shows "—" | Less than 5 s of audio collected | Wait ~5 s after starting analysis |
+| Extension doesn't open | Extension not loaded | Go to `chrome://extensions`, enable Developer Mode, and load the folder |
+| Results from wrong tab | Another YouTube tab is active | Stop analysis on the other tab first |
+| ⚠ badge on key | Confidence < 40 — ambiguous chroma | Play through a full verse/chorus for better data |
+
 ## Privacy Policy
 
 All audio analysis runs locally in your browser. No audio or personal data is collected or transmitted. See [`privacy-policy.html`](privacy-policy.html) for the full policy.

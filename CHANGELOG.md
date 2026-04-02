@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.16] — 2026-04-03
+
+### Fixed
+- `popup.js`: transpose slider storage writes now debounced (300 ms) — prevents
+  flooding `chrome.storage.local` on rapid drag; slider element value is re-synced
+  to the clamped `_transposeOffset` to prevent visual desync on corrupted input
+
+### Changed
+- `popup.js`: add comment on `KEY_LOCK_MS` duplication explaining MV3 isolation
+  (no shared imports between content script and popup)
+- `popup.js`: `_sliderSaveTimer` module-level variable added for debounce
+- `content/chromagram.js`, `content/key-detector.js`: add `// Node.js CommonJS
+  exports` comment to `module.exports` block — clarifies test-only role in browser
+- `CLAUDE.md`: expand constants table with `FFT_SIZE`, `SMOOTHING_CONSTANT`,
+  `CHROMA_ENERGY_THRESHOLD`, `MIN_FRAMES_FOR_KEY_LOCK`; correct BPM onset
+  description to reference named constants instead of hardcoded numbers
+- `README.md`: add Troubleshooting table — 8 common symptoms with causes and fixes
+
+---
+
 ## [1.0.15] — 2026-04-03
 
 ### Changed

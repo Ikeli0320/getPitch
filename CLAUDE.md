@@ -63,8 +63,12 @@ In `content/content.js`:
 | `NOTE_WINDOW` | 3 | Rolling frame window for note confirmation |
 | `NOTE_MIN_HITS` | 2 | Frames in window that must agree on a note |
 | `SILENT_TIMEOUT_MS` | 20000 | ms of near-zero chroma before "no audio" error |
+| `FFT_SIZE` | 4096 | AnalyserNode FFT size — higher = better low-freq resolution, more CPU |
+| `SMOOTHING_CONSTANT` | 0.3 | AnalyserNode time-averaging: 0 = instant, 1 = maximum smoothing |
+| `CHROMA_ENERGY_THRESHOLD` | 0.01 | Minimum chromagram energy to consider audio present (silence guard) |
+| `MIN_FRAMES_FOR_KEY_LOCK` | 10 | Minimum frames before key can lock (~2 s at TICK_MS=200ms) |
 
-BPM onset detection uses 50–500 Hz (hardcoded in `_onsetTick`; captures kick drum + bass transients).
+BPM onset detection uses `ONSET_FREQ_MIN_HZ`–`ONSET_FREQ_MAX_HZ` (50–500 Hz); captures kick drum + bass transients.
 
 ## Music Theory
 

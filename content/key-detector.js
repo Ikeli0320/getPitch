@@ -146,4 +146,5 @@ function recommendKey(detectedKey, maxMidi) {
   return { ...best, semitoneShift: actualShift };
 }
 
+// Node.js CommonJS exports — only used by tests/test-key-detector.js, not in browser context
 if (typeof module !== 'undefined') module.exports = { detectKey, recommendKey, midiToName, midiToSolfege, ALL_KEYS, D5_MIDI };
