@@ -120,13 +120,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (area === 'session' && changes.getPitchState) {
       const next = changes.getPitchState.newValue;
       if (!next) return;
-      // Detect full reset (new song navigated to) — refresh the song title.
-      // Guard: only treat as navigation reset if previous state was non-empty
-      // (was analysing or had results). A plain Stop with no results detected
-      // also produces all-null fields but should not re-query the tab title.
+      // Detect SPA navigation (new song) via navTimestamp change — refresh song title.
+      // navTimestamp is set by background on every yt-navigate-finish, so this fires
+      // even when both old and new states are fully empty (stop-with-no-results case).
       const wasReset = _lastState
-        && !next.isAnalyzing && !next.detectedKey && !next.maxNote
-        && (_lastState.isAnalyzing || _lastState.detectedKey || _lastState.maxNote);
+        && next.navTimestamp
+        && next.navTimestamp !== (_lastState.navTimestamp || 0);
       if (wasReset) {
         _lastKeyAcc = undefined; _lastRecAcc = undefined; // invalidate SVG caches
         chrome.tabs.query({ active: true, lastFocusedWindow: true }, ([tab]) => {

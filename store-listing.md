@@ -70,14 +70,18 @@ Free
 
 ## Submission checklist
 - [x] Icons: icon16.png, icon32.png, icon48.png, icon128.png — generated via `node scripts/generate-icons.js`
-- [x] ZIP built: `getPitch-1.0.0.zip` — run PowerShell command below to rebuild
+- [x] ZIP built: `getPitch-1.0.4.zip` — run PowerShell command below to rebuild
 - [x] **Privacy policy hosted** — https://ikeli0320.github.io/getPitch/privacy-policy.html
       → Enter that URL in Chrome Web Store Developer Dashboard → Store listing → Privacy practices
-- [ ] At least 3 screenshots uploaded (1280×800 or 640×400) — see screenshot list above
-- [ ] Developer account verified on Chrome Web Store Dashboard ($5 one-time fee)
+- [x] 3 screenshots ready in `screenshots/`: screenshot1.png, screenshot2.png, screenshot3.png (1280×800)
+- [ ] Developer account verified ($5 one-time fee at Chrome Web Store Developer Dashboard)
+- [ ] Upload `getPitch-1.0.4.zip` and submit for review
 
 ## Rebuild ZIP (PowerShell)
 ```powershell
-Remove-Item -Force getPitch-1.0.0.zip -ErrorAction SilentlyContinue
-Compress-Archive -Path manifest.json,background,content,popup,icons,privacy-policy.html -DestinationPath getPitch-1.0.0.zip -Force
+# Auto-reads version from manifest.json
+$ver = (Get-Content manifest.json | ConvertFrom-Json).version
+Remove-Item -Force "getPitch-$ver.zip" -ErrorAction SilentlyContinue
+Compress-Archive -Path manifest.json,background,content,popup,icons,privacy-policy.html -DestinationPath "getPitch-$ver.zip" -Force
+Write-Host "Built getPitch-$ver.zip"
 ```

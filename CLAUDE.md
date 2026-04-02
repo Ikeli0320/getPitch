@@ -45,7 +45,7 @@ content scripts (YouTube page)               background.js        popup.js
 - **MV3 service worker eviction**: Chrome kills the background worker after ~30 s idle. On restart, the in-memory `state` resets to `DEFAULT_STATE`. Fix: on module load, background reads `getPitchState` from session storage to restore state. `getState` always reads from session storage rather than the in-memory variable. Stored state is always merged with `DEFAULT_STATE` to guard against schema changes on update.
 - **Key lock silence guard**: key only locks when `frameCount >= 10` AND `chromaEnergy > 0.01`. Prevents garbage key output on muted/silent videos.
 - Popup SVG caches (`_lastKeyAcc`, `_lastRecAcc`) prevent re-rendering staff SVGs every tick. Progress bar uses a persistent `<div>` — only `style.width` is updated.
-- Popup `storage.onChanged` detects a full reset (all null + `isAnalyzing: false`) and refreshes the song title from the active tab.
+- Popup `storage.onChanged` uses `navTimestamp` (set by background on every `resetState`) to reliably detect SPA navigations and refresh the song title — including the edge case where both old and new states are fully empty (user stopped analysis with no results, then navigated).
 - **Permissions**: `activeTab`, `storage`, `tabs`. No `scripting` — content scripts are injected declaratively via `content_scripts` in manifest, not via the scripting API. `minimum_chrome_version` is `"116"`.
 - **Multi-tab isolation**: `activeTabId` in background.js tracks which tab is currently being analysed. `startAnalysis` stops the previous tab before starting the new one. `updateResults` from non-active tabs is ignored. `resetState` (yt-navigate-finish) clears `activeTabId`.
 
@@ -63,6 +63,7 @@ In `content/content.js`:
 | `ONSET_HISTORY_MAX` | 400 | Max onset samples (~20 s) |
 | `NOTE_WINDOW` | 3 | Rolling frame window for note confirmation |
 | `NOTE_MIN_HITS` | 2 | Frames in window that must agree on a note |
+| `SILENT_TIMEOUT_MS` | 20000 | ms of near-zero chroma before "no audio" error |
 
 ## Music Theory
 
@@ -83,6 +84,7 @@ Pure Node.js (no dependencies). Writes `icons/icon16.png`, `icon48.png`, `icon12
 
 ## Chrome Web Store
 
-- ZIP for submission: `getPitch-1.0.0.zip` (run the PowerShell command in store-listing.md)
-- Privacy policy: host `privacy-policy.html` publicly (e.g. GitHub Pages) and enter the URL in the Developer Dashboard
+- ZIP for submission: `getPitch-<version>.zip` (use the versioned PowerShell command in store-listing.md)
+- Privacy policy hosted at: `https://ikeli0320.github.io/getPitch/privacy-policy.html`
 - See `store-listing.md` for full copy and submission checklist
+- Screenshots (1280×800) ready in `screenshots/`

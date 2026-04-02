@@ -10,6 +10,10 @@ const DEFAULT_STATE = {
   recommendedKey: null,
   elapsedMs:      0,
   error:          null,
+  // navTimestamp increments on every yt-navigate-finish so the popup can detect
+  // a new-song navigation even when both old and new states are fully empty
+  // (e.g. user stopped analysis with no results, then navigated to next song).
+  navTimestamp:   0,
 };
 
 let state = { ...DEFAULT_STATE };
@@ -18,7 +22,7 @@ let state = { ...DEFAULT_STATE };
 // Prevents a compromised or buggy content script from injecting arbitrary keys.
 const _ALLOWED_UPDATE_KEYS = new Set([
   'isAnalyzing', 'keyLocked', 'detectedKey', 'maxNote', 'maxNoteSolfege',
-  'bpm', 'recommendedKey', 'elapsedMs', 'error',
+  'bpm', 'recommendedKey', 'elapsedMs', 'error', 'navTimestamp',
 ]);
 
 // Throttle session storage writes during active analysis.
@@ -154,7 +158,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (sender.tab && activeTabId !== null && activeTabId !== -1 &&
         sender.tab.id !== activeTabId) return;
     activeTabId = null;
-    state = { ...DEFAULT_STATE };
+    // Increment navTimestamp so popup always detects a navigation event even
+    // when both old and new states are fully empty (stop-with-no-results case).
+    state = { ...DEFAULT_STATE, navTimestamp: Date.now() };
     chrome.storage.session.set({ getPitchState: state }).catch(() => {});
     return;
   }
