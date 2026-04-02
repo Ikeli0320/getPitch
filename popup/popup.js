@@ -48,13 +48,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     allowedEl.appendChild(el);
   });
 
-  // Check if we're on a YouTube watch page
+  // Check if we're on a YouTube watch or Shorts page
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   const _isYouTubeWatch = (() => {
     try {
       const u = new URL(tab && tab.url ? tab.url : '');
-      return (u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com') &&
-             u.pathname === '/watch';
+      const ytHosts = ['www.youtube.com', 'youtube.com', 'm.youtube.com'];
+      return ytHosts.includes(u.hostname) &&
+             (u.pathname === '/watch' || u.pathname.startsWith('/shorts/'));
     } catch (_) { return false; }
   })();
   if (!_isYouTubeWatch) {
@@ -64,11 +65,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Show song title (strip " - YouTube" suffix from tab title)
-  const songTitle = (tab.title || '').replace(/\s*[-–]\s*YouTube\s*$/, '').trim();
+  const rawTitle = (tab.title || '').replace(/\s*[-–]\s*YouTube\s*$/, '').trim();
+  // Truncate very long titles to prevent layout overflow on edge cases
+  const songTitle = rawTitle.length > 60 ? rawTitle.slice(0, 57) + '…' : rawTitle;
   if (songTitle) {
     const titleEl = document.getElementById('song-title');
     titleEl.textContent = songTitle;
-    titleEl.title = songTitle; // tooltip for truncated titles
+    titleEl.title = rawTitle; // tooltip always shows full title
     document.getElementById('song-title-bar').classList.remove('hidden');
   }
 
@@ -122,12 +125,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (wasReset) {
         _lastKeyAcc = undefined; _lastRecAcc = undefined; // invalidate SVG caches
         chrome.tabs.query({ active: true, lastFocusedWindow: true }, ([tab]) => {
-          if (tab && tab.url && tab.url.includes('youtube.com/watch')) {
-            const t = (tab.title || '').replace(/\s*[-–]\s*YouTube\s*$/, '').trim();
+          if (tab && tab.url &&
+              (tab.url.includes('youtube.com/watch') || tab.url.includes('youtube.com/shorts/'))) {
+            const raw = (tab.title || '').replace(/\s*[-–]\s*YouTube\s*$/, '').trim();
+            const t = raw.length > 60 ? raw.slice(0, 57) + '…' : raw;
             if (t) {
               const el = document.getElementById('song-title');
               el.textContent = t;
-              el.title = t;
+              el.title = raw;
             }
           }
         });
@@ -176,6 +181,14 @@ function _getAdjustedKey(baseKey) {
   }
   const extra = bestIsUp ? bestDist : -bestDist;
   return { ...best, semitoneShift: (baseKey.semitoneShift || 0) + _transposeOffset + extra };
+}
+
+// ── Key signature helpers ──────────────────────────────────────────────────
+// Returns a human-readable aria-label for a key signature staff (e.g. "1 升記號")
+function _keySigAriaLabel(acc) {
+  if (acc === null || acc === 0) return '無升降記號';
+  const n = Math.abs(acc);
+  return acc > 0 ? `${n} 個升記號` : `${n} 個降記號`;
 }
 
 // ── Key signature staff SVG ────────────────────────────────────────────────
@@ -227,21 +240,33 @@ function _updateUI(state) {
   btn.setAttribute('aria-label', _isAnalyzing ? '停止分析' : '開始分析');
   btn.classList.toggle('stop', _isAnalyzing);
 
-  // Detected key + staff SVG + progress bar
+  // Detected key + staff SVG + progress bar + confidence badge
   const keyEl      = document.getElementById('detected-key');
   const staffEl    = document.getElementById('key-sig-staff');
   const progBar    = document.getElementById('key-progress-bar');
   const progInner  = document.getElementById('key-progress-inner');
   const lockLabel  = document.getElementById('key-locked-label');
+  const confWarn   = document.getElementById('key-conf-warn');
   if (state.keyLocked && state.detectedKey) {
     keyEl.textContent = state.detectedKey.name || '—';
     const ka = typeof state.detectedKey.acc === 'number' ? state.detectedKey.acc : null;
     if (ka !== _lastKeyAcc) {
+      staffEl.setAttribute('aria-label', _keySigAriaLabel(ka));
       staffEl.innerHTML = ka !== null ? _renderKeySigSVG(ka) : '';
       _lastKeyAcc = ka;
     }
     progBar.classList.add('hidden');
     lockLabel.classList.remove('hidden');
+    // Show low-confidence warning inline in the key card
+    const c = state.detectedKey.confidence;
+    if (confWarn) {
+      if (typeof c === 'number' && c < 40) {
+        confWarn.classList.remove('hidden');
+        confWarn.setAttribute('title', `偵測信心 ${c}%，結果可能不準確`);
+      } else {
+        confWarn.classList.add('hidden');
+      }
+    }
   } else if (_isAnalyzing) {
     keyEl.textContent = '偵測中...';
     if (_lastKeyAcc !== 0) { staffEl.innerHTML = _renderKeySigSVG(0); _lastKeyAcc = 0; }
@@ -253,11 +278,13 @@ function _updateUI(state) {
     keyEl.textContent = state.detectedKey ? state.detectedKey.name : '—';
     const ka = state.detectedKey ? state.detectedKey.acc : null;
     if (ka !== _lastKeyAcc) {
+      staffEl.setAttribute('aria-label', _keySigAriaLabel(ka));
       staffEl.innerHTML = ka !== null ? _renderKeySigSVG(ka) : '';
       _lastKeyAcc = ka;
     }
     progBar.classList.add('hidden');
     lockLabel.classList.add('hidden');
+    if (confWarn) confWarn.classList.add('hidden');
   }
 
   // Max note
@@ -287,7 +314,9 @@ function _updateUI(state) {
     recEl.textContent = adjKey.name;
     recEl.style.color = ''; // let .card.highlight .value CSS take over (blue)
     if (adjKey.acc !== _lastRecAcc) {
-      document.getElementById('rec-sig-staff').innerHTML = _renderKeySigSVG(adjKey.acc);
+      const recStaff = document.getElementById('rec-sig-staff');
+      recStaff.setAttribute('aria-label', _keySigAriaLabel(adjKey.acc));
+      recStaff.innerHTML = _renderKeySigSVG(adjKey.acc);
       _lastRecAcc = adjKey.acc;
     }
     const s = adjKey.semitoneShift;

@@ -197,3 +197,8 @@ button:focus-visible {
   color: #fff;
   font-weight: 600;
 }
+
+.conf-warn {
+  color: #e28a4a !important;
+  font-size: 11px;
+}

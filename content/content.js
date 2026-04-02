@@ -113,6 +113,9 @@ function stopAnalysis() {
 // ── Tick ───────────────────────────────────────────────────────────────────
 function _tick() {
   if (!audioCtx || !analyserNode) return;
+  // Skip processing while video is paused — accumulating chroma from silence
+  // degrades key detection accuracy and wastes CPU.
+  if (audioSource && audioSource.mediaElement && audioSource.mediaElement.paused) return;
 
   const freqData = new Float32Array(analyserNode.frequencyBinCount);
   analyserNode.getFloatFrequencyData(freqData);
@@ -187,6 +190,7 @@ function _findMaxNote(freqData) {
 // ── BPM (onset detection) ──────────────────────────────────────────────────
 function _onsetTick() {
   if (!audioCtx || !analyserNode) return;
+  if (audioSource && audioSource.mediaElement && audioSource.mediaElement.paused) return;
   const freqData = new Float32Array(analyserNode.frequencyBinCount);
   analyserNode.getFloatFrequencyData(freqData);
 

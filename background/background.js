@@ -14,6 +14,18 @@ const DEFAULT_STATE = {
 
 let state = { ...DEFAULT_STATE };
 
+// Whitelist of fields that content.js is allowed to write into state.
+// Prevents a compromised or buggy content script from injecting arbitrary keys.
+const _ALLOWED_UPDATE_KEYS = new Set([
+  'isAnalyzing', 'keyLocked', 'detectedKey', 'maxNote', 'maxNoteSolfege',
+  'bpm', 'recommendedKey', 'elapsedMs', 'error',
+]);
+
+// Throttle session storage writes during active analysis.
+// The popup only needs ~2 updates/sec for smooth UX; 5x/sec was wasteful.
+let _lastStorageWrite = 0;
+const STORAGE_THROTTLE_MS = 500;
+
 // Track which tab is currently being analysed.
 // Prevents updateResults messages from a stale tab (user started analysis on Tab A,
 // then switched to Tab B and started again) from corrupting the active tab's results.
@@ -99,8 +111,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // Reject everything when no analysis is active (activeTabId === null) to
     // prevent stale content scripts from writing results after stopAnalysis.
     if (!sender.tab || activeTabId === null || sender.tab.id !== activeTabId) return;
-    state = { ...state, ...msg.data };
-    chrome.storage.session.set({ getPitchState: state }).catch(() => {});
+    // Validate: only merge whitelisted keys to guard against content script bugs.
+    const clean = {};
+    if (msg.data && typeof msg.data === 'object') {
+      for (const k of _ALLOWED_UPDATE_KEYS) {
+        if (Object.prototype.hasOwnProperty.call(msg.data, k)) clean[k] = msg.data[k];
+      }
+    }
+    state = { ...state, ...clean };
+    // Throttle storage writes during active analysis to ~2×/sec.
+    // Write immediately on non-analyzing updates (error, stop) so UI stays in sync.
+    const now = Date.now();
+    if (!state.isAnalyzing || now - _lastStorageWrite >= STORAGE_THROTTLE_MS) {
+      chrome.storage.session.set({ getPitchState: state }).catch(() => {});
+      _lastStorageWrite = now;
+    }
     return;
   }
 
