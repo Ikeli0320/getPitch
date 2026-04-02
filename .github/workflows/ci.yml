@@ -25,5 +25,11 @@ jobs:
       - name: Verify manifest/package version in sync
         run: npm run version-check
 
+      - name: Verify icon files exist
+        run: |
+          for f in icons/icon16.png icons/icon48.png icons/icon128.png; do
+            test -f "$f" || { echo "Missing icon: $f"; exit 1; }
+          done
+
       - name: Run all tests
         run: npm test

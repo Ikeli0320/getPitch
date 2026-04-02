@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.15] — 2026-04-03
+
+### Changed
+- `content.js`: substitute four new named constants into actual usage — `FFT_SIZE`,
+  `SMOOTHING_CONSTANT`, `CHROMA_ENERGY_THRESHOLD`, `MIN_FRAMES_FOR_KEY_LOCK` — no
+  more magic numbers `4096`, `0.3`, `0.01`, `10` in the code body; add explanatory
+  comment on `MIN_FRAMES_FOR_KEY_LOCK` lock guard
+- `popup.html`: add `aria-label="現正播放"` to `#song-title-bar` container — screen
+  readers now announce the region label before announcing the song title
+- `background.js`: log tab ID and action name in `_sendToTab()` catch — makes
+  DevTools debugging easier when a content script is not yet injected
+- `.github/workflows/ci.yml`: add icon-file verification step — CI fails fast
+  if `icons/icon{16,48,128}.png` are missing from the repo
+- `CLAUDE.md`: note that `yt-navigate-finish` is not guaranteed to fire (e.g.
+  direct URL entry, back/forward), and document the stale-source guard in
+  `startAnalysis()` that handles the missed-event case; update key-lock guard
+  comment to reference constant names `MIN_FRAMES_FOR_KEY_LOCK` / `CHROMA_ENERGY_THRESHOLD`
+
+---
+
 ## [1.0.14] — 2026-04-03
 
 ### Fixed

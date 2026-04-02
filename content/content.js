@@ -17,6 +17,15 @@ const SILENT_TIMEOUT_MS   = 20000;
 // BPM autocorrelation search range — songs outside this range are rare in practice.
 const BPM_MIN = 60;
 const BPM_MAX = 180;
+// AnalyserNode configuration — tuned for ~200ms accuracy at pop/rock tempo resolution.
+const FFT_SIZE         = 4096; // frequency bins; higher = better low-freq resolution
+const SMOOTHING_CONSTANT = 0.3; // time averaging: 0=instant, 1=maximum smoothing
+// Minimum chromagram energy to consider audio "present" (guards against silent/muted video).
+// Value is empirically derived: real music yields ~0.1–10+; silence/mute yields <0.001.
+const CHROMA_ENERGY_THRESHOLD = 0.01;
+// Minimum frames before the key can lock — prevents locking on startup transients.
+// At TICK_MS=200ms, 10 frames = 2 s of audio minimum before the 15 s lock window expires.
+const MIN_FRAMES_FOR_KEY_LOCK = 10;
 
 let audioCtx     = null;
 let analyserNode = null;
@@ -111,8 +120,8 @@ async function startAnalysis() {
     }
     if (!audioSource) {
       analyserNode = audioCtx.createAnalyser();
-      analyserNode.fftSize = 4096;
-      analyserNode.smoothingTimeConstant = 0.3;
+      analyserNode.fftSize = FFT_SIZE;
+      analyserNode.smoothingTimeConstant = SMOOTHING_CONSTANT;
       audioSource = audioCtx.createMediaElementSource(video);
       audioSource.connect(analyserNode);
       analyserNode.connect(audioCtx.destination); // Keep audio audible
@@ -172,15 +181,16 @@ function _tick() {
   // Silence guard: if audio energy has been near-zero for SILENT_TIMEOUT_MS,
   // the video is likely muted, at OS-level silence, or has no audio track.
   // Stop analysis and show a helpful error instead of hanging indefinitely.
-  if (!keyLocked && elapsed >= SILENT_TIMEOUT_MS && chromaEnergy <= 0.01) {
+  if (!keyLocked && elapsed >= SILENT_TIMEOUT_MS && chromaEnergy <= CHROMA_ENERGY_THRESHOLD) {
     stopAnalysis('未偵測到音訊，請確認影片未靜音、系統音量已開啟且影片正在播放');
     return;
   }
 
   // Lock key at 15s — only if sufficient audio energy was observed.
   // A near-zero chromaSum (silent/muted video) would yield an arbitrary key.
-  if (!keyLocked && elapsed >= KEY_LOCK_MS && frameCount >= 10) {
-    if (chromaEnergy > 0.01) {
+  // MIN_FRAMES_FOR_KEY_LOCK: at TICK_MS=200ms, 10 frames = 2 s minimum before the 15 s window expires
+  if (!keyLocked && elapsed >= KEY_LOCK_MS && frameCount >= MIN_FRAMES_FOR_KEY_LOCK) {
+    if (chromaEnergy > CHROMA_ENERGY_THRESHOLD) {
       detectedKey = detectKey(chromaSum);
       keyLocked   = true;
     }

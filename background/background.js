@@ -181,7 +181,8 @@ function _activeTab(cb) {
 }
 
 function _sendToTab(tabId, msg) {
-  chrome.tabs.sendMessage(tabId, msg).catch(() => {
+  chrome.tabs.sendMessage(tabId, msg).catch(e => {
     // Tab may have navigated away or content script not yet injected
+    console.debug('[getPitch] sendToTab failed (tab', tabId, msg.action + '):', e?.message);
   });
 }
