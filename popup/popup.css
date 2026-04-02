@@ -1,0 +1,113 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 280px;
+  font-family: -apple-system, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+}
+
+#app { padding: 12px; }
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+header h1 { font-size: 18px; font-weight: 600; color: #fff; }
+.logo { font-size: 20px; }
+
+#msg-bar {
+  background: #2d2d44;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #aaa;
+  text-align: center;
+}
+
+.card {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+}
+.card label {
+  font-size: 11px;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.card .value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  margin: 4px 0 2px;
+}
+.card .status { font-size: 11px; color: #555; }
+.card.highlight { border: 1px solid #4a90e2; }
+.card.highlight .value { color: #4a90e2; }
+
+.progress-bar {
+  height: 3px;
+  background: #2d2d44;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.progress-inner {
+  height: 100%;
+  background: #4a90e2;
+  transition: width 0.2s;
+}
+
+hr { border: none; border-top: 1px solid #2a2a3e; margin: 8px 0; }
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.detail-row > span:first-child { color: #555; min-width: 70px; }
+#d-allowed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+  max-width: 160px;
+}
+.chip {
+  background: #2d2d44;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 11px;
+  color: #aaa;
+}
+
+footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+#start-btn { flex: 1; background: #4a90e2; color: #fff; }
+#start-btn:hover { background: #357abd; }
+#start-btn.stop { background: #e24a4a; }
+#start-btn:disabled { background: #333; color: #555; cursor: default; }
+#detail-btn { background: #2d2d44; color: #aaa; }
+#detail-btn:hover { background: #3a3a54; }
+
+.hidden { display: none !important; }

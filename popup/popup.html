@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>getPitch</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <span class="logo">🎵</span>
+    <h1>getPitch</h1>
+  </header>
+
+  <div id="msg-bar" class="hidden"></div>
+
+  <section id="results">
+    <div class="card">
+      <label>原曲調號</label>
+      <div id="detected-key" class="value">—</div>
+      <div id="key-progress"></div>
+    </div>
+
+    <div class="card">
+      <label>最高音</label>
+      <div id="max-note" class="value">—</div>
+      <div class="status" id="note-status"></div>
+    </div>
+
+    <div class="card highlight">
+      <label>推薦調號（適合演唱）</label>
+      <div id="recommended-key" class="value">—</div>
+      <div class="status" id="shift-info"></div>
+    </div>
+  </section>
+
+  <section id="detail-section" class="hidden">
+    <hr>
+    <div class="detail-row">
+      <span>偵測狀態</span><span id="d-status">—</span>
+    </div>
+    <div class="detail-row">
+      <span>調整半音</span><span id="d-shift">—</span>
+    </div>
+    <div class="detail-row">
+      <span>可用調號</span>
+      <div id="d-allowed"></div>
+    </div>
+  </section>
+
+  <footer>
+    <button id="start-btn">▶ 開始分析</button>
+    <button id="detail-btn">詳細 ▼</button>
+  </footer>
+
+</div>
+<script src="popup.js"></script>
+</body>
+</html>

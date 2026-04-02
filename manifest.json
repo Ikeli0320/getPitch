@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "getPitch",
+  "version": "0.1.0",
+  "description": "偵測 YouTube 歌曲調號與最高音，推薦適合演唱的調號",
+  "permissions": ["activeTab", "scripting", "storage", "tabs"],
+  "host_permissions": ["*://*.youtube.com/*"],
+  "background": {
+    "service_worker": "background/background.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "getPitch"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": [
+        "content/chromagram.js",
+        "content/key-detector.js",
+        "content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
