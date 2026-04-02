@@ -89,5 +89,55 @@ assert(midiToSolfege(72) === '高音Do',   `midiToSolfege(72)='高音Do' (got ${
 assert(midiToSolfege(48) === '低音Do',   `midiToSolfege(48)='低音Do' (got ${midiToSolfege(48)})`);
 assert(midiToSolfege(84) === '超高音Do', `midiToSolfege(84)='超高音Do' (got ${midiToSolfege(84)})`);
 
+// midiToName boundary values
+console.log('\nTest: midiToName — boundary values');
+assert(midiToName(21)  === 'A0',  `midiToName(21)='A0' (lowest piano key)`);
+assert(midiToName(108) === 'C8',  `midiToName(108)='C8' (highest piano key)`);
+assert(midiToName(0)   === 'C-1', `midiToName(0)='C-1' (MIDI minimum)`);
+
+// detectKey — single pitch class dominant
+console.log('\nTest: detectKey — single dominant pitch class');
+const singlePitch = new Float32Array(12);
+singlePitch[7] = 10.0; // G heavily dominant
+const rSingle = detectKey(singlePitch);
+assert(typeof rSingle === 'object' && rSingle !== null,
+  'detectKey with single dominant pitch returns an object');
+assert(typeof rSingle.confidence === 'number',
+  'detectKey single pitch returns numeric confidence');
+
+// recommendKey — keys at the boundary of allowed accidentals
+console.log('\nTest: recommendKey — accidental boundary keys');
+// A major (3 sharps, the maximum allowed) with a high note
+const aMajor = { root: 9, mode: 'major', name: 'A 大調', acc: 3 };
+const recA = recommendKey(aMajor, 74); // max D5 — already within range
+assert(recA !== null, 'A major (3 sharps) produces a recommendation');
+assert(typeof recA.semitoneShift === 'number', 'Recommendation includes semitoneShift');
+
+// Eb major (3 flats) with a note requiring downward transposition
+const ebMajor = { root: 3, mode: 'major', name: 'Eb 大調', acc: -3 };
+const recEb = recommendKey(ebMajor, 74); // max D5 — already within range
+assert(recEb !== null, 'Eb major (3 flats) produces a recommendation');
+
+// recommendKey — maxMidi exactly at the D5 boundary (MIDI 74)
+console.log('\nTest: recommendKey — maxMidi at D5 boundary');
+const gMajorKey = { root: 7, mode: 'major', name: 'G 大調', acc: 1 };
+const recD5 = recommendKey(gMajorKey, 74); // D5 is exactly the ceiling
+assert(recD5 !== null, 'maxMidi = D5 (74) allows recommendation');
+assert(typeof recD5.semitoneShift === 'number', 'D5 ceiling: shift is numeric');
+
+// recommendKey — maxMidi one semitone above D5 (MIDI 75 = D#5)
+// Ideal shift = -1 targets F# major (acc:6, excluded), nearest allowed = G major (acc:1),
+// so net shift snaps back to 0.  The algorithm prefers fewer accidentals over exact shift.
+const recAboveD5 = recommendKey(gMajorKey, 75);
+assert(recAboveD5 !== null, 'maxMidi = D#5 (75) still finds a recommendation');
+assert(typeof recAboveD5.semitoneShift === 'number',
+  `D#5 above ceiling → numeric shift (got ${recAboveD5 && recAboveD5.semitoneShift})`);
+
+// C major with very high note E5 (MIDI 76) — ideal shift=-2 targets Bb major (acc:-2, allowed)
+const cMajorKey = { root: 0, mode: 'major', name: 'C 大調', acc: 0 };
+const recE5 = recommendKey(cMajorKey, 76); // E5 above D5
+assert(recE5 !== null, 'C major + E5 (76) finds a recommendation');
+assert(recE5.semitoneShift < 0, `C major + E5 → downward shift (got ${recE5 && recE5.semitoneShift})`);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

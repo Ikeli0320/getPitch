@@ -1,12 +1,15 @@
 // content/content.js
 
-const KEY_LOCK_MS       = 15000;
-const TICK_MS           = 200;
-const NOISE_FLOOR_DB    = -55;
-const FREQ_MIN_HZ       = 130;
-const FREQ_MAX_HZ       = 1175;
-const ONSET_TICK_MS     = 50;
-const ONSET_HISTORY_MAX = 400; // 20 seconds of onset data
+const KEY_LOCK_MS         = 15000;
+const TICK_MS             = 200;
+const NOISE_FLOOR_DB      = -55;
+const FREQ_MIN_HZ         = 130;
+const FREQ_MAX_HZ         = 1175;
+const ONSET_TICK_MS       = 50;
+const ONSET_HISTORY_MAX   = 400; // 20 seconds of onset data
+// If chromaEnergy stays near-zero beyond this threshold, the video is likely
+// muted or has no audio track — show an error rather than silently hanging.
+const SILENT_TIMEOUT_MS   = 20000;
 
 let audioCtx     = null;
 let analyserNode = null;
@@ -140,11 +143,20 @@ function _tick() {
   }
 
   const elapsed = Date.now() - startTime;
+  const chromaEnergy = chromaSum.reduce((a, b) => a + b, 0);
+
+  // Silence guard: if audio energy has been near-zero for SILENT_TIMEOUT_MS,
+  // the video is likely muted, at OS-level silence, or has no audio track.
+  // Stop analysis and show a helpful error instead of hanging indefinitely.
+  if (!keyLocked && elapsed >= SILENT_TIMEOUT_MS && chromaEnergy <= 0.01) {
+    stopAnalysis();
+    _send({ isAnalyzing: false, error: '未偵測到音訊，請確認影片未靜音且已開始播放' });
+    return;
+  }
 
   // Lock key at 15s — only if sufficient audio energy was observed.
   // A near-zero chromaSum (silent/muted video) would yield an arbitrary key.
   if (!keyLocked && elapsed >= KEY_LOCK_MS && frameCount >= 10) {
-    const chromaEnergy = chromaSum.reduce((a, b) => a + b, 0);
     if (chromaEnergy > 0.01) {
       detectedKey = detectKey(chromaSum);
       keyLocked   = true;

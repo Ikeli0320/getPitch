@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const _isYouTubeWatch = (() => {
     try {
       const u = new URL(tab && tab.url ? tab.url : '');
-      const ytHosts = ['www.youtube.com', 'youtube.com', 'm.youtube.com'];
+      const ytHosts = ['www.youtube.com', 'youtube.com', 'm.youtube.com', 'music.youtube.com'];
       return ytHosts.includes(u.hostname) &&
              (u.pathname === '/watch' || u.pathname.startsWith('/shorts/'));
     } catch (_) { return false; }
@@ -92,10 +92,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.setAttribute('aria-label', willStop ? '開始分析' : '停止分析');
     btn.classList.toggle('stop', !willStop);
     chrome.runtime.sendMessage({ action }).catch(() => {
-      // Revert if message failed
+      // Revert optimistic UI change and tell the user something went wrong.
+      // This path is hit when the background service worker is unavailable
+      // (e.g. crashed or evicted by Chrome between popup open and click).
       btn.textContent = willStop ? '⏹ 停止分析' : '▶ 開始分析';
       btn.setAttribute('aria-label', willStop ? '停止分析' : '開始分析');
       btn.classList.toggle('stop', willStop);
+      _showMsg('操作失敗，請重新開啟擴充功能');
     });
   });
 
@@ -272,6 +275,7 @@ function _updateUI(state) {
     if (_lastKeyAcc !== 0) { staffEl.innerHTML = _renderKeySigSVG(0); _lastKeyAcc = 0; }
     const pct = Math.min(100, Math.round(((state.elapsedMs || 0) / KEY_LOCK_MS) * 100));
     progInner.style.width = pct + '%'; // update width only — no DOM reconstruction
+    progBar.setAttribute('aria-valuenow', pct);
     progBar.classList.remove('hidden');
     lockLabel.classList.add('hidden');
   } else {
