@@ -8,18 +8,19 @@ on:
 
 jobs:
   test:
-    name: Unit tests
+    name: Unit tests (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['18', '20']
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ matrix.node-version }}
 
-      - name: Run chromagram tests
-        run: node tests/test-chromagram.js
-
-      - name: Run key-detector tests
-        run: node tests/test-key-detector.js
+      - name: Run all tests
+        run: npm test

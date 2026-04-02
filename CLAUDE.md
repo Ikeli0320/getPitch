@@ -16,11 +16,10 @@ No build step. Load the folder directly in `chrome://extensions/` (Developer Mod
 ## Running Tests
 
 ```bash
-node tests/test-chromagram.js
-node tests/test-key-detector.js
+npm test
 ```
 
-Tests use Node.js directly — no test runner needed.
+Runs both test suites (`tests/test-chromagram.js` and `tests/test-key-detector.js`) via Node.js directly — no test runner needed. CI runs the same command on Node 18 and 20.
 
 ## Architecture
 

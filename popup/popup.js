@@ -75,12 +75,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('song-title-bar').classList.remove('hidden');
   }
 
-  // Restore persisted transpose offset (survives popup closes)
-  chrome.storage.local.get(['transposeOffset'], (r) => {
-    if (typeof r.transposeOffset === 'number') {
+  // Restore persisted transpose offset BEFORE loading state so the first _updateUI call
+  // uses the correct offset — prevents a visible slider flicker on popup open.
+  // chrome.storage.local.get returns a Promise in Chrome 88+ (our min is 116).
+  try {
+    const local = await chrome.storage.local.get('transposeOffset');
+    if (typeof local.transposeOffset === 'number') {
       // Clamp in case the stored value is outside the current allowed range
       // (e.g., saved with a previous version that had a wider range)
-      _transposeOffset = Math.max(-3, Math.min(3, r.transposeOffset));
+      _transposeOffset = Math.max(-3, Math.min(3, local.transposeOffset));
       const slider = document.getElementById('transpose-slider');
       slider.value = _transposeOffset;
       const label = _transposeOffset === 0 ? '0'
@@ -90,9 +93,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         : (_transposeOffset > 0 ? `+${_transposeOffset} 半音` : `${_transposeOffset} 半音`);
       slider.setAttribute('aria-valuenow', _transposeOffset);
       slider.setAttribute('aria-valuetext', valueText);
-      if (_lastState) _updateUI(_lastState);
     }
-  });
+  } catch (_) {}
 
   // Load latest state from background
   let state = null;
