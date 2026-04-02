@@ -17,6 +17,9 @@ const SILENT_TIMEOUT_MS   = 20000;
 // BPM autocorrelation search range — songs outside this range are rare in practice.
 const BPM_MIN = 60;
 const BPM_MAX = 180;
+// Minimum onset samples before attempting BPM autocorrelation.
+// At ONSET_TICK_MS=50ms (20 ticks/sec), 5 s × 20 ticks = 100 samples.
+const BPM_ONSET_MIN_SAMPLES = Math.round(1000 / ONSET_TICK_MS * 5);
 // AnalyserNode configuration — tuned for ~200ms accuracy at pop/rock tempo resolution.
 const FFT_SIZE         = 4096; // frequency bins; higher = better low-freq resolution
 const SMOOTHING_CONSTANT = 0.3; // time averaging: 0=instant, 1=maximum smoothing
@@ -238,7 +241,7 @@ function _findMaxNote(freqData) {
     const freq = bin * freqPerBin;
     if (freq < FREQ_MIN_HZ || freq > FREQ_MAX_HZ) continue;
 
-    const midi = Math.round(69 + 12 * Math.log2(freq / 440));
+    const midi = Math.round(A4_MIDI + 12 * Math.log2(freq / A4_HZ)); // A4_MIDI/A4_HZ defined in chromagram.js
     if (best === null || midi > best) best = midi;
   }
   return best;
@@ -274,7 +277,7 @@ function _onsetTick() {
 
 function _estimateBPM() {
   const n = onsetHistory.length;
-  if (n < 100) return null; // Need ~5 seconds of data
+  if (n < BPM_ONSET_MIN_SAMPLES) return null; // Need ~5 seconds of data
 
   const ticksPerSec  = 1000 / ONSET_TICK_MS; // 20
   const minPeriod    = Math.round(ticksPerSec * 60 / BPM_MAX); // period for BPM_MAX (fastest)

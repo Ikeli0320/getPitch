@@ -5,6 +5,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.20] — 2026-04-03
+
+### Changed
+- `content/chromagram.js`: extract `A4_MIDI = 69`, `A4_HZ = 440`, and
+  `CHROMA_NOISE_FLOOR_DB = -80` as named constants — removes the last
+  magic numbers from the MIDI frequency formula and noise floor check;
+  all three exported for testing
+- `content/content.js`: add `BPM_ONSET_MIN_SAMPLES` derived constant
+  (`Math.round(1000 / ONSET_TICK_MS * 5)` = 100 at default settings) to
+  replace the bare `100` in `_estimateBPM()`; use `A4_MIDI` / `A4_HZ`
+  globals (from chromagram.js, loaded first) in `_findMaxNote()`
+
+### Tests
+- `tests/test-chromagram.js`: 6 new tests (24 total):
+  - `A4_MIDI = 69`, `A4_HZ = 440`, `CHROMA_NOISE_FLOOR_DB = -80`
+  - MIDI formula identity check: `A4_MIDI + 12·log₂(A4_HZ/A4_HZ) = 69`
+  - Bin at exactly `CHROMA_NOISE_FLOOR_DB` is excluded
+  - Bin 1 dB above `CHROMA_NOISE_FLOOR_DB` is included
+
+---
+
 ## [1.0.19] — 2026-04-03
 
 ### Fixed

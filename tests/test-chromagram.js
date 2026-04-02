@@ -1,5 +1,5 @@
 // tests/test-chromagram.js
-const { buildChromagram, accumulateChroma, CHROMA_FREQ_MIN_HZ, CHROMA_FREQ_MAX_HZ } = require('../content/chromagram.js');
+const { buildChromagram, accumulateChroma, CHROMA_FREQ_MIN_HZ, CHROMA_FREQ_MAX_HZ, A4_MIDI, A4_HZ, CHROMA_NOISE_FLOOR_DB } = require('../content/chromagram.js');
 
 let passed = 0, failed = 0;
 function assert(cond, msg) {
@@ -119,6 +119,31 @@ const aboveMaxBin = Math.round((CHROMA_FREQ_MAX_HZ + 50) / (44100 / 4096));
 aboveMax[aboveMaxBin] = -10;
 const aboveMaxC = buildChromagram(aboveMax, 44100, 4096);
 assert(aboveMaxC.reduce((a, b) => a + b, 0) < 0.001, 'Freq above CHROMA_FREQ_MAX_HZ is excluded');
+
+// A4_MIDI, A4_HZ, CHROMA_NOISE_FLOOR_DB exported constants
+console.log('\nTest: A4_MIDI, A4_HZ, CHROMA_NOISE_FLOOR_DB exported constants');
+assert(A4_MIDI === 69, `A4_MIDI = 69 (MIDI note of concert A4) — got ${A4_MIDI}`);
+assert(A4_HZ === 440, `A4_HZ = 440 Hz (ISO 16 concert pitch) — got ${A4_HZ}`);
+assert(CHROMA_NOISE_FLOOR_DB === -80, `CHROMA_NOISE_FLOOR_DB = -80 dB — got ${CHROMA_NOISE_FLOOR_DB}`);
+
+// A4 bin at 440 Hz maps to MIDI 69 using the exported formula constants
+const a4BinConst = Math.round(A4_HZ / (44100 / 4096));
+const midiFromConst = A4_MIDI + 12 * Math.log2(A4_HZ / A4_HZ); // = 69 + 0 = 69
+assert(Math.round(midiFromConst) === 69, `A4_MIDI + 12·log₂(A4_HZ/A4_HZ) = 69 (identity check)`);
+
+// CHROMA_NOISE_FLOOR_DB: bin at exactly that dB should be excluded
+const floorFreq = new Float32Array(2048).fill(-100);
+floorFreq[a4BinConst] = CHROMA_NOISE_FLOOR_DB; // exactly at threshold
+const floorChroma = buildChromagram(floorFreq, 44100, 4096);
+assert(floorChroma.reduce((a,b)=>a+b,0) < 0.001,
+  `Bin at CHROMA_NOISE_FLOOR_DB (${CHROMA_NOISE_FLOOR_DB} dB) is excluded`);
+
+// One dB above floor should be included
+const aboveFloorFreq = new Float32Array(2048).fill(-100);
+aboveFloorFreq[a4BinConst] = CHROMA_NOISE_FLOOR_DB + 1;
+const aboveFloorChroma = buildChromagram(aboveFloorFreq, 44100, 4096);
+assert(aboveFloorChroma.reduce((a,b)=>a+b,0) > 0,
+  `Bin 1 dB above CHROMA_NOISE_FLOOR_DB is included`);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

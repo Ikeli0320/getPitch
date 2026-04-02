@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "getPitch - YouTube Key Detector",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "Detect the key, highest note, and recommended singing key of any YouTube song in real-time.",
   "minimum_chrome_version": "116",
   "content_security_policy": {
