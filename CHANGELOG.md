@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.21] — 2026-04-03
+
+### Changed
+- `popup/popup.js`: extract `SLIDER_DEBOUNCE_MS = 300` and `_SVG_FONT_SIZE = 15`
+  as named constants — removes the last two magic numbers from the popup;
+  debounce delay and SVG text size are now tunable without hunting for bare literals
+- `background/background.js`: extract `STARTUP_STORAGE_TIMEOUT_MS = 500`
+  as a named constant — documents the startup storage-restore race timeout
+- `content/key-detector.js`: add inline comment explaining the half-octave
+  normalization (`if (shift > 6) shift -= 12` — `6 = 12 / 2`)
+- `CLAUDE.md`: add constants-reference tables for `chromagram.js`, `popup.js`,
+  and `background.js` so all tunables are documented in one place
+
+---
+
 ## [1.0.20] — 2026-04-03
 
 ### Changed
