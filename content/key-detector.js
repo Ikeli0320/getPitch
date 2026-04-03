@@ -126,7 +126,7 @@ function recommendKey(detectedKey, maxMidi) {
   // Prevents showing "-12 semitones" when the key name doesn't actually change.
   let shift = D5_MIDI - maxMidi;
   shift = ((shift % 12) + 12) % 12;
-  if (shift > 6) shift -= 12;
+  if (shift > 6) shift -= 12; // fold into [-6, +6] (half-octave: 12 / 2)
   const targetRoot = ((detectedKey.root + shift) % 12 + 12) % 12;
   const allowed = ALL_KEYS.filter(k => k.mode === detectedKey.mode && Math.abs(k.acc) <= 3);
 

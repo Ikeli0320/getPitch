@@ -30,6 +30,10 @@ const _ALLOWED_UPDATE_KEYS = new Set([
 let _lastStorageWrite = 0;
 const STORAGE_THROTTLE_MS = 500;
 
+// Timeout (ms) for the startup storage-restore race — prevents a stalled
+// chrome.storage.session.get from blocking service worker initialization.
+const STARTUP_STORAGE_TIMEOUT_MS = 500;
+
 // Track which tab is currently being analysed.
 // Prevents updateResults messages from a stale tab (user started analysis on Tab A,
 // then switched to Tab B and started again) from corrupting the active tab's results.
@@ -41,7 +45,7 @@ let activeTabId = null;
 // Race a 500ms timeout so a stalled storage read never blocks the service worker startup.
 Promise.race([
   chrome.storage.session.get('getPitchState'),
-  new Promise(resolve => setTimeout(() => resolve({}), 500)),
+  new Promise(resolve => setTimeout(() => resolve({}), STARTUP_STORAGE_TIMEOUT_MS)),
 ]).then(result => {
   if (result.getPitchState && typeof result.getPitchState === 'object') {
     // Merge with DEFAULT_STATE so missing keys from older versions are filled in

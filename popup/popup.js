@@ -6,6 +6,8 @@ const MAX_SONG_TITLE_LENGTH  = 60;
 const CONFIDENCE_WARN_THRESHOLD = 40; // ⚠ badge shown below this confidence %
 const TRANSPOSE_MIN          = -3;
 const TRANSPOSE_MAX          = 3;
+const SLIDER_DEBOUNCE_MS     = 300; // ms to wait before flushing slider value to storage
+const _SVG_FONT_SIZE         = 15;  // px font-size for accidental symbols in key-sig SVGs
 
 let _isAnalyzing       = false;
 let _showDetail        = false;
@@ -182,7 +184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearTimeout(_sliderSaveTimer);
     _sliderSaveTimer = setTimeout(() => {
       chrome.storage.local.set({ transposeOffset: _transposeOffset });
-    }, 300);
+    }, SLIDER_DEBOUNCE_MS);
     if (_lastState) _updateUI(_lastState);
   });
 });
@@ -276,7 +278,7 @@ function _renderKeySigSVG(acc) {
 
   const accs = yArr.map((y, i) => {
     const x = _SVG_PAD + i * (_SVG_ACC_W + _SVG_GAP) + _SVG_ACC_W * 0.5;
-    return `<text x="${x}" y="${y}" font-size="15" fill="#cce0ff" font-family="serif" ` +
+    return `<text x="${x}" y="${y}" font-size="${_SVG_FONT_SIZE}" fill="#cce0ff" font-family="serif" ` +
            `text-anchor="middle" dominant-baseline="central">${sym}</text>`;
   }).join('');
 

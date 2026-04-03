@@ -70,12 +70,12 @@ Free
 
 ## Submission checklist
 - [x] Icons: icon16.png, icon32.png, icon48.png, icon128.png — generated via `node scripts/generate-icons.js`
-- [x] ZIP built: `getPitch-1.0.19.zip` — run PowerShell command below to rebuild
+- [x] ZIP built: `getPitch-1.0.21.zip` — run PowerShell command below to rebuild
 - [x] **Privacy policy hosted** — https://ikeli0320.github.io/getPitch/privacy-policy.html
       → Enter that URL in Chrome Web Store Developer Dashboard → Store listing → Privacy practices
 - [x] 3 screenshots ready in `screenshots/`: screenshot1.png, screenshot2.png, screenshot3.png (1280×800)
 - [ ] Developer account verified ($5 one-time fee at Chrome Web Store Developer Dashboard)
-- [ ] Upload `getPitch-1.0.19.zip` and submit for review
+- [ ] Upload `getPitch-1.0.21.zip` and submit for review
 
 ## Rebuild ZIP (PowerShell)
 ```powershell

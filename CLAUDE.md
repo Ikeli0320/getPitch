@@ -70,6 +70,30 @@ In `content/content.js`:
 
 BPM onset detection uses `ONSET_FREQ_MIN_HZ`–`ONSET_FREQ_MAX_HZ` (50–500 Hz); captures kick drum + bass transients.
 
+In `content/chromagram.js`:
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `CHROMA_FREQ_MIN_HZ` | 130 | Lower bound for key detection (C3) |
+| `CHROMA_FREQ_MAX_HZ` | 1047 | Upper bound for key detection (C6) |
+| `A4_MIDI` | 69 | MIDI note number for concert A4 (ISO 16) |
+| `A4_HZ` | 440 | Frequency of concert A4 in Hz |
+| `CHROMA_NOISE_FLOOR_DB` | −80 | dB threshold below which FFT bins are ignored |
+
+In `popup/popup.js`:
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `SLIDER_DEBOUNCE_MS` | 300 | ms debounce before writing transpose offset to storage.local |
+| `_SVG_FONT_SIZE` | 15 | px font-size for accidental symbols (♯/♭) in staff SVGs |
+
+In `background/background.js`:
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `STORAGE_THROTTLE_MS` | 500 | ms minimum between session storage writes during active analysis |
+| `STARTUP_STORAGE_TIMEOUT_MS` | 500 | ms timeout for startup state-restore from session storage |
+
 ## Music Theory
 
 - **Profiles**: Bellman-Budge (1962), not K-S (1990). Higher contrast between scale/non-scale tones reduces relative major/minor confusion (e.g. G major vs F# minor).
