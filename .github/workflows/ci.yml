@@ -33,3 +33,7 @@ jobs:
 
       - name: Run all tests
         run: npm test
+
+      - name: Verify release ZIP builds without errors
+        if: matrix.node-version == '20'
+        run: npm run build:zip

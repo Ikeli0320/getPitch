@@ -16,8 +16,21 @@ header {
   gap: 8px;
   margin-bottom: 12px;
 }
-header h1 { font-size: 18px; font-weight: 600; color: #fff; }
-.logo { font-size: 20px; }
+.header-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+header h1 { font-size: 18px; font-weight: 600; color: #fff; line-height: 1.2; }
+.header-tagline {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 400;
+  color: #888;
+  line-height: 1.2;
+}
+.logo { font-size: 20px; flex-shrink: 0; }
 
 #song-title-bar {
   background: #0f3460;

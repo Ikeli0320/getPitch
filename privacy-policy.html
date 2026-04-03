@@ -3,56 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>getPitch - 隱私權政策 / Privacy Policy</title>
+  <title>getPitch — 隱私權政策</title>
   <style>
-    body { max-width: 720px; margin: 40px auto; padding: 0 20px; font-family: -apple-system, 'Segoe UI', sans-serif; line-height: 1.7; color: #333; }
+    body { max-width: 720px; margin: 40px auto; padding: 0 20px; font-family: -apple-system, 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', sans-serif; line-height: 1.7; color: #333; }
     h1 { font-size: 24px; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
     h2 { font-size: 20px; margin-top: 32px; }
     h3 { font-size: 16px; margin-top: 20px; }
     p, li { font-size: 15px; }
-    .lang { color: #888; font-size: 13px; }
+    .lang-switch { font-size: 14px; margin-bottom: 24px; }
+    .lang-switch a { color: #1a5fb4; }
   </style>
 </head>
 <body>
 
-<h1>getPitch — Privacy Policy / 隱私權政策</h1>
-<p><em>Last updated: 2026-04-03</em></p>
+<p class="lang-switch"><strong>語言</strong>：<a href="#privacy-zh">繁體中文</a> · <a href="#privacy-en">English</a></p>
 
-<h2>English</h2>
+<h1 id="privacy-zh">getPitch — 隱私權政策</h1>
+<p><em>最後更新：2026-04-03</em></p>
 
-<h3>Data Collection</h3>
-<p>getPitch does <strong>not</strong> collect, transmit, or share any personal data. All audio analysis is performed locally in your browser using the Web Audio API.</p>
-
-<h3>What the Extension Accesses</h3>
-<ul>
-  <li><strong>Audio from the active YouTube tab</strong> — analysed in real-time in the browser. No audio data is stored or transmitted anywhere.</li>
-  <li><strong>Tab URL and title</strong> — used solely to verify you are on a YouTube watch page and to display the song title in the popup. This data is never stored or sent off-device.</li>
-  <li><strong>chrome.storage.session</strong> — stores temporary analysis results (detected key, highest note, BPM) for the current browser session only. This data is erased automatically when the browser closes.</li>
-  <li><strong>chrome.storage.local</strong> — stores a single user preference: the transpose slider position (a number from −3 to +3). This value never leaves your device and contains no personal information.</li>
-</ul>
-
-<h3>Third-Party Services</h3>
-<p>getPitch does not use analytics, advertising, or any third-party services. It makes no network requests.</p>
-
-<h3>Permissions Explained</h3>
-<ul>
-  <li><code>activeTab</code> — to access the audio element on the current YouTube tab.</li>
-  <li><code>storage</code> — to pass analysis results between the content script and popup using session storage.</li>
-  <li><code>tabs</code> — to read the tab URL and title.</li>
-  <li><code>*://*.youtube.com/*</code> — content script is limited to YouTube only.</li>
-</ul>
-
-<h3>Contact</h3>
-<p>If you have questions about this privacy policy, please open an issue on the project's GitHub repository.</p>
-
-<hr>
-
-<h2>中文</h2>
-
-<h3>資料蒐集</h3>
+<h2>資料蒐集</h2>
 <p>getPitch <strong>不蒐集、不傳輸、不分享</strong>任何個人資料。所有音訊分析均在您的瀏覽器本機進行，使用 Web Audio API，不涉及任何外部伺服器。</p>
 
-<h3>本擴充功能存取的內容</h3>
+<h2>本擴充功能存取的內容</h2>
 <ul>
   <li><strong>目前 YouTube 分頁的音訊</strong> — 於瀏覽器本機即時分析，音訊資料不會被儲存或傳送。</li>
   <li><strong>分頁的網址與標題</strong> — 僅用於確認您正在 YouTube 觀看頁面，以及在彈出視窗顯示歌曲名稱。此資訊不會被儲存或上傳。</li>
@@ -60,10 +32,10 @@
   <li><strong>chrome.storage.local</strong> — 僅儲存一項使用者偏好設定：微調滑條的位置（−3 到 +3 之間的數字）。此資料不會離開您的裝置，不含任何個人資料。</li>
 </ul>
 
-<h3>第三方服務</h3>
+<h2>第三方服務</h2>
 <p>getPitch 不使用任何分析、廣告或第三方服務，也不進行任何網路請求。</p>
 
-<h3>權限說明</h3>
+<h2>權限說明</h2>
 <ul>
   <li><code>activeTab</code> — 存取目前 YouTube 分頁的音訊元素。</li>
   <li><code>storage</code> — 透過 session storage 在內容腳本與彈出視窗之間傳遞分析結果。</li>
@@ -71,8 +43,38 @@
   <li><code>*://*.youtube.com/*</code> — 內容腳本僅限 YouTube 網站執行。</li>
 </ul>
 
-<h3>聯絡方式</h3>
-<p>如有任何關於隱私權政策的疑問，請在本專案的 GitHub repository 開啟 issue。</p>
+<h2>聯絡方式</h2>
+<p>如有任何關於隱私權政策的疑問，請在本專案的 GitHub 儲存庫開啟 issue。</p>
+
+<hr style="margin: 48px 0;">
+
+<h1 id="privacy-en">getPitch — Privacy Policy</h1>
+<p><em>Last updated: 2026-04-03</em></p>
+
+<h2>Data Collection</h2>
+<p>getPitch does <strong>not</strong> collect, transmit, or share any personal data. All audio analysis is performed locally in your browser using the Web Audio API.</p>
+
+<h2>What the Extension Accesses</h2>
+<ul>
+  <li><strong>Audio from the active YouTube tab</strong> — analysed in real-time in the browser. No audio data is stored or transmitted anywhere.</li>
+  <li><strong>Tab URL and title</strong> — used solely to verify you are on a YouTube watch page and to display the song title in the popup. This data is never stored or sent off-device.</li>
+  <li><strong>chrome.storage.session</strong> — stores temporary analysis results (detected key, highest note, BPM) for the current browser session only. This data is erased automatically when the browser closes.</li>
+  <li><strong>chrome.storage.local</strong> — stores a single user preference: the transpose slider position (a number from −3 to +3). This value never leaves your device and contains no personal information.</li>
+</ul>
+
+<h2>Third-Party Services</h2>
+<p>getPitch does not use analytics, advertising, or any third-party services. It makes no network requests.</p>
+
+<h2>Permissions Explained</h2>
+<ul>
+  <li><code>activeTab</code> — to access the audio element on the current YouTube tab.</li>
+  <li><code>storage</code> — to pass analysis results between the content script and popup using session storage.</li>
+  <li><code>tabs</code> — to read the tab URL and title.</li>
+  <li><code>*://*.youtube.com/*</code> — content script is limited to YouTube only.</li>
+</ul>
+
+<h2>Contact</h2>
+<p>If you have questions about this privacy policy, please open an issue on the project's GitHub repository.</p>
 
 </body>
 </html>

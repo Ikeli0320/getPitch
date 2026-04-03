@@ -1,7 +1,7 @@
 {
   "name": "getpitch",
-  "version": "1.0.22",
-  "description": "YouTube key signature detector Chrome extension",
+  "version": "1.0.23",
+  "description": "YouTube 即時調性分析 Chrome 擴充功能（調號、最高音、拍速、建議演唱調）",
   "private": true,
   "scripts": {
     "test": "node tests/test-chromagram.js && node tests/test-key-detector.js",

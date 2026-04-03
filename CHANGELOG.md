@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.23] — 2026-04-03
+
+### Changed
+- **Locale (zh-TW primary):** `manifest.json` display name, description, action
+  title, and command description are now Traditional Chinese; `package.json`
+  description updated to match
+- `README.md` rewritten in Traditional Chinese; English moved to `README.en.md`
+  with cross-links for GitHub language switching
+- `CONTRIBUTING.md` in Traditional Chinese; English in `CONTRIBUTING.en.md`
+- `privacy-policy.html`: Chinese section first; anchor links for 繁體中文 / English
+- `store-listing.md`: zh-TW listing blocks first; English blocks labeled for the
+  second Chrome Web Store package
+- `popup/popup.html` + `popup.css`: header tagline 「YouTube 即時調性分析」;
+  document title localized
+- `popup/popup.js`: BPM unit label shown as 「拍/分」 instead of `BPM`
+
+---
+
 ## [1.0.22] — 2026-04-03
 
 ### Fixed

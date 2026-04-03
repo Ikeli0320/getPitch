@@ -1,76 +1,79 @@
-# Contributing to getPitch
+# 貢獻指南 — getPitch
 
-Thanks for your interest in contributing!
+**語言：** [繁體中文](CONTRIBUTING.md)（本頁）· [English](CONTRIBUTING.en.md)
 
-## Setup
+感謝你有意願一起改善本專案。
 
-No build step required. The extension runs directly from source.
+## 環境設定
+
+無需建置步驟，直接以原始碼載入擴充功能即可。
 
 ```bash
 git clone https://github.com/Ikeli0320/getPitch.git
 cd getPitch
 ```
 
-Load the extension in Chrome:
-1. Open `chrome://extensions/`
-2. Enable **Developer mode**
-3. Click **Load unpacked** → select the `getPitch/` folder
+在 Chrome 中載入：
 
-## Running Tests
+1. 開啟 `chrome://extensions/`
+2. 啟用**開發人員模式**
+3. 點**載入未封裝項目** → 選取 `getPitch/` 資料夾
+
+## 執行測試
 
 ```bash
 npm test
 ```
 
-Both test suites (chromagram + key-detector) run via Node.js — no test runner needed.
+chromagram 與 key-detector 兩組測試皆以 Node.js 直接執行，無需額外測試框架。
 
-Before committing, also verify versions are in sync:
+提交前請確認版本號一致：
 
 ```bash
 npm run version-check
 ```
 
-## Project Structure
+## 專案結構
 
-| Path | Purpose |
+| 路徑 | 用途 |
 |---|---|
-| `content/` | Content scripts injected into YouTube pages |
-| `background/` | MV3 service worker |
-| `popup/` | Extension popup UI |
-| `tests/` | Node.js unit tests |
-| `scripts/` | Dev utilities (icon generator) |
-| `screenshots/` | Store screenshots + generation tool |
+| `content/` | 注入 YouTube 頁面的內容腳本 |
+| `background/` | Manifest V3 service worker |
+| `popup/` | 擴充功能彈出視窗介面 |
+| `tests/` | Node.js 單元測試 |
+| `scripts/` | 開發用工具（圖示產生、上架 ZIP 打包等） |
+| `screenshots/` | 商店截圖與產圖腳本 |
 
-See `CLAUDE.md` for the full architecture and constants reference.
+完整架構與常數說明見 `CLAUDE.md`。
 
-## Making Changes
+## 修改流程建議
 
-1. Make your change
-2. Run `npm run version-check` — bump both `manifest.json` and `package.json` if needed
-3. Run `npm test` — all 57 tests must pass
-4. Commit with a [Conventional Commits](https://www.conventionalcommits.org/) message:
-   `fix: ...` / `feat: ...` / `chore: ...` / `docs: ...`
-5. Open a pull request
+1. 完成你的變更
+2. 執行 `npm run version-check` — 若有釋出需求，請同步遞增 `manifest.json` 與 `package.json` 的 `version`
+3. 執行 `npm test` — 須全部通過
+4. 執行 `npm run build:zip` — 確認上架 ZIP 可正常產生
+5. 提交訊息建議遵循 [Conventional Commits](https://www.conventionalcommits.org/)：`fix:` / `feat:` / `chore:` / `docs:` 等
+6. 開啟 Pull Request
 
-## Regenerating Icons
+## 重新產生圖示
 
 ```bash
 node scripts/generate-icons.js
 ```
 
-## Regenerating Store Screenshots
+## 重新產生商店截圖
 
 ```bash
 cd screenshots
-npm install   # first time only — installs puppeteer
+npm install   # 僅第一次需要，會安裝 puppeteer
 node take-screenshots.js
 ```
 
-Outputs `screenshot1-3.png` at 1280×800 from the HTML mockups.
+會從 HTML mockup 輸出 1280×800 的 `screenshot1-3.png`。
 
-## Coding Style
+## 程式風格
 
-- 2-space indent, LF line endings (enforced by `.editorconfig`)
-- No mutation of shared state outside of the designated module-level variables
-- Keep functions under 50 lines
-- No build tooling — plain ES2017 JS that Chrome 116+ understands natively
+- 縮排 2 空格、LF 行尾（由 `.editorconfig` 規範）
+- 除約定的模組層級變數外，避免任意修改共享狀態
+- 單一函式建議維持在 50 行以內
+- 不使用額外打包工具 — 僅使用 Chrome 116+ 原生支援的 ES2017 語法

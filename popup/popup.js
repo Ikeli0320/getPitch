@@ -104,7 +104,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load latest state from background
   let state = null;
-  try { state = await chrome.runtime.sendMessage({ action: 'getState' }); } catch (_) {}
+  try {
+    state = await chrome.runtime.sendMessage({ action: 'getState' });
+  } catch (_) {
+    // Background service worker evicted — fall back to reading session storage directly
+    // so the popup still shows the last-known analysis results instead of a blank slate.
+    try {
+      const r = await chrome.storage.session.get('getPitchState');
+      if (r.getPitchState) state = r.getPitchState;
+    } catch (_) {}
+  }
   if (state) { _lastState = state; _updateUI(state); }
 
   // Button: start / stop — update button text immediately for snappy UX
@@ -362,7 +371,7 @@ function _updateNoteAndBPM(state) {
   const bpmStat = document.getElementById('bpm-status');
   if (state.bpm) {
     bpmEl.textContent   = state.bpm;
-    bpmUnit.textContent = 'BPM';
+    bpmUnit.textContent = '拍/分';
     bpmStat.textContent = '（估算）';
   } else {
     bpmEl.textContent   = '—';
