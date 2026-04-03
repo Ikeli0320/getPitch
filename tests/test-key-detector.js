@@ -199,5 +199,25 @@ assert(rExtreme.root === 0 && rExtreme.mode === 'major',
 assert(rExtreme.confidence >= 0 && rExtreme.confidence <= 100,
   `detectKey(extreme amplitude) confidence in [0,100] (got ${rExtreme.confidence})`);
 
+// recommendKey — very low maxMidi (bass-only content, MIDI 40 = E2)
+// Ensures shift normalization doesn't produce a shift outside [-6, +6]
+console.log('\nTest: recommendKey — very low maxMidi (bass MIDI 40)');
+const cMajorLow = { root: 0, mode: 'major', name: 'C 大調', acc: 0 };
+const recLow = recommendKey(cMajorLow, 40);
+assert(recLow !== null, 'recommendKey with very low note (MIDI 40) returns a result');
+assert(typeof recLow.semitoneShift === 'number',
+  'recommendKey(MIDI 40) produces a numeric semitoneShift');
+assert(Math.abs(recLow.semitoneShift) <= 6,
+  `recommendKey(MIDI 40) shift in [-6, +6] (got ${recLow.semitoneShift})`);
+assert(Math.abs(recLow.acc) <= 3,
+  `recommendKey(MIDI 40) stays within ≤3 accidentals (got acc=${recLow.acc})`);
+
+// Minor key with very low maxMidi
+const aMinorLow = { root: 9, mode: 'minor', name: 'A 小調', acc: 0 };
+const recLowMinor = recommendKey(aMinorLow, 36); // C2
+assert(recLowMinor !== null, 'recommendKey minor + MIDI 36 returns a result');
+assert(Math.abs(recLowMinor.semitoneShift) <= 6,
+  `recommendKey minor(MIDI 36) shift in [-6, +6] (got ${recLowMinor.semitoneShift})`);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

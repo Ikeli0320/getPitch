@@ -265,7 +265,7 @@ function _onsetTick() {
       if (diff > 0) onset += diff;
     }
     onsetHistory.push(onset);
-    if (onsetHistory.length > ONSET_HISTORY_MAX) onsetHistory.shift();
+    if (onsetHistory.length >= ONSET_HISTORY_MAX) onsetHistory.shift();
   }
   // Copy current frame into prevOnsetData for next tick's flux calculation
   if (!prevOnsetData || prevOnsetData.length !== _onsetBuf.length) {

@@ -5,6 +5,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.22] — 2026-04-03
+
+### Fixed
+- `content/content.js` line 268: `onsetHistory.length > ONSET_HISTORY_MAX` corrected
+  to `>= ONSET_HISTORY_MAX` — prevents the onset buffer growing to 401 elements
+  (one frame over cap) before the first eviction, keeping it strictly bounded at 400
+
+### Changed
+- `popup/popup.css`: add `.chip:hover` and `.chip:focus-visible` — chips in the
+  allowed-keys list now show pointer feedback and a visible keyboard-focus ring
+  (WCAG 2.4.7 Focus Visible compliance for the detail panel)
+- `README.md`: remove "*(coming soon)*" marker from Chrome Web Store install section
+- `package.json`: add `"build:zip"` script (`node scripts/build-zip.js`)
+- `scripts/build-zip.js`: new Node.js script that builds a spec-compliant submission
+  ZIP with deflate compression — no PowerShell or external tools required
+
+### Tests
+- `tests/test-key-detector.js`: 6 new tests (110 total) — `recommendKey` with very
+  low `maxMidi` values (MIDI 40 = E2, MIDI 36 = C2) verifies that the half-octave
+  shift normalization keeps `semitoneShift` within `[-6, +6]` and `acc` within `≤ 3`
+
+---
+
 ## [1.0.21] — 2026-04-03
 
 ### Changed

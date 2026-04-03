@@ -23,9 +23,9 @@ A Chrome extension that listens to any YouTube song and tells you its **key sign
 
 ## Install
 
-### From Chrome Web Store *(coming soon)*
+### From Chrome Web Store
 
-Search for **getPitch - YouTube Key Detector** or use the direct link once published.
+Search for **getPitch - YouTube Key Detector** on the Chrome Web Store, or install directly from the developer dashboard once the listing is live.
 
 ### Manual (Developer Mode)
 

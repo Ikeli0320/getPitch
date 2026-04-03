@@ -1,12 +1,13 @@
 {
   "name": "getpitch",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "description": "YouTube key signature detector Chrome extension",
   "private": true,
   "scripts": {
     "test": "node tests/test-chromagram.js && node tests/test-key-detector.js",
     "icons": "node scripts/generate-icons.js",
-    "version-check": "node -e \"const m=require('./manifest.json');const p=require('./package.json');if(m.version!==p.version){console.error('Version mismatch: manifest='+m.version+' package='+p.version);process.exit(1);}console.log('Versions in sync: '+m.version);\""
+    "version-check": "node -e \"const m=require('./manifest.json');const p=require('./package.json');if(m.version!==p.version){console.error('Version mismatch: manifest='+m.version+' package='+p.version);process.exit(1);}console.log('Versions in sync: '+m.version);\"",
+    "build:zip": "node scripts/build-zip.js"
   },
   "engines": {
     "node": ">=18"

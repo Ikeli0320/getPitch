@@ -205,6 +205,12 @@ button:focus-visible {
   letter-spacing: 0.3px;
 }
 
+.chip:hover  { background: #3a3a54; color: #cce0ff; }
+.chip:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 1px;
+  border-radius: 4px;
+}
 .chip.active {
   background: #4a90e2;
   color: #fff;
